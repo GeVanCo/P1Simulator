@@ -12,9 +12,7 @@ namespace P1Simulator
             Console.WriteLine("=== P1 Smart Meter Simulator ===");
 
             string? autoPort = SerialPortScanner.AutoDetectEsp32();
-            autoPort = "COM6";
             Logger.Info($"Auto-detected COM port: {autoPort ?? "None"}");
-            Console.WriteLine($"Auto-detected COM port: {autoPort ?? "None"}");
 
             if (autoPort == null)
             {
@@ -27,7 +25,6 @@ namespace P1Simulator
             }
             var sender = new SerialSender(autoPort!);
             Logger.Info($"Using COM port: {autoPort}");
-            Console.WriteLine($"Using COM port: {autoPort}");
 
             var generator = new TelegramGenerator();
             var profile = new SimulationProfile(SimulationMode.Normal);
