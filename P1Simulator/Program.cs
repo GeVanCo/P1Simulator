@@ -7,45 +7,77 @@ namespace P1Simulator
 {
     internal class Program
     {
+        private static readonly CancellationTokenSource _cts = new();
+
         static async Task Main(string[] args)
         {
             Console.WriteLine("=== P1 Smart Meter Simulator ===");
+            Console.WriteLine("Press Ctrl+C to stop.");
 
-            string? autoPort = SerialPortScanner.AutoDetectEsp32();
-            autoPort = "COM6";
-            Logger.Info($"Auto-detected COM port: {autoPort ?? "None"}");
-            Console.WriteLine($"Auto-detected COM port: {autoPort ?? "None"}");
+            // Register graceful shutdown handlers
+            Console.CancelKeyPress += OnCancelKeyPress;
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
-            if (autoPort == null)
+            // Auto-detect COM port
+            string? portName = ComPortDetectorHybrid.AutoDetect();
+
+            if (portName == null)
             {
-                Console.WriteLine("No ESP32-C3 detected. Available ports:");
-                foreach (var p in SerialPortScanner.GetAvailablePorts())
-                    Console.WriteLine(" - " + p);
-
-                Console.WriteLine("Please enter COM port manually:");
-                autoPort = Console.ReadLine();
+                Console.WriteLine("ERROR: No USB‑UART adapter detected.");
+                return;
             }
-            var sender = new SerialSender(autoPort!);
-            Logger.Info($"Using COM port: {autoPort}");
-            Console.WriteLine($"Using COM port: {autoPort}");
 
+            Console.WriteLine($"Using port: {portName}");
+            Logger.Info($"Using COM port: {portName}");
+
+            var sender = new SerialSender(portName, 115200);
             var generator = new TelegramGenerator();
             var profile = new SimulationProfile(SimulationMode.Normal);
 
-            Logger.Info($"Opening serial port {autoPort}...");
+            Logger.Info($"Opening serial port {portName}...");
             sender.Open();
 
-            while (true)
+            try
             {
-                string telegram = generator.GenerateTelegram(profile);
-                Console.WriteLine("Sending telegram:");
-                Console.WriteLine(telegram);
+                while (!_cts.Token.IsCancellationRequested)
+                {
+                    string telegram = generator.GenerateTelegram(profile);
 
-                sender.Send(telegram);
+                    Console.WriteLine("Sending telegram:");
+                    Console.WriteLine(telegram);
 
-                await Task.Delay(profile.IntervalMs); // 1 Hz
+                    sender.Send(telegram);
+
+                    await Task.Delay(profile.IntervalMs, _cts.Token);
+                }
             }
+            catch (TaskCanceledException)
+            {
+                // Expected on shutdown
+            }
+            finally
+            {
+                Console.WriteLine("Shutting down...");
+                Logger.Info("Shutting down simulator...");
+
+                sender.Dispose();
+                Logger.Info("Serial port closed.");
+
+                Logger.Flush();
+                Console.WriteLine("Goodbye!");
+            }
+        }
+
+        private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+        {
+            Console.WriteLine("Ctrl+C detected. Stopping...");
+            e.Cancel = true; // Prevent immediate termination
+            _cts.Cancel();
+        }
+
+        private static void OnProcessExit(object? sender, EventArgs e)
+        {
+            _cts.Cancel();
         }
     }
 }
-

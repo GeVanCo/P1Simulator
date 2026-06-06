@@ -1,4 +1,5 @@
-﻿
+﻿using System;
+
 namespace P1Simulator.Logging
 {
     public static class Logger
@@ -37,6 +38,21 @@ namespace P1Simulator.Logging
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] {message}{Environment.NewLine}");
             }
         }
+
+        /// <summary>
+        /// Exists for API completeness. No buffering is used, so nothing to flush.
+        /// </summary>
+        public static void Flush()
+        {
+            // No-op: File.AppendAllText writes immediately.
+        }
+
+        /// <summary>
+        /// Included for graceful shutdown symmetry.
+        /// </summary>
+        public static void Dispose()
+        {
+            // No resources to dispose yet, but method exists for future expansion.
+        }
     }
 }
-

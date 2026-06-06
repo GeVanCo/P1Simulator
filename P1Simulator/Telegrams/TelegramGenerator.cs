@@ -54,7 +54,7 @@ namespace P1Simulator.Telegrams
 
         private static string AddCrc(string telegram)
         {
-            string crc = Crc16X25.ComputeHex(telegram);
+            string crc = DsmrCrc16.ComputeHex(telegram);
             return telegram + crc + "\r\n";
         }
 

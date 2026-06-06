@@ -11,25 +11,27 @@ namespace P1Simulator
         {
             Console.WriteLine("=== P1 Smart Meter Simulator ===");
 
-            string? autoPort = SerialPortScanner.AutoDetectEsp32();
-            Logger.Info($"Auto-detected COM port: {autoPort ?? "None"}");
+            // Auto-detect COM port using loopback test
+            string portName = ComPortDetectorLoopback.AutoDetect();
 
-            if (autoPort == null)
+            if (portName == null)
             {
-                Console.WriteLine("No ESP32-C3 detected. Available ports:");
-                foreach (var p in SerialPortScanner.GetAvailablePorts())
-                    Console.WriteLine(" - " + p);
-
-                Console.WriteLine("Please enter COM port manually:");
-                autoPort = Console.ReadLine();
+                Console.WriteLine("ERROR: No USB‑UART adapter detected via loopback.");
+                Console.WriteLine("Make sure TX and RX are shorted on your adapter.");
+                return;
             }
-            var sender = new SerialSender(autoPort!);
-            Logger.Info($"Using COM port: {autoPort}");
+
+            Console.WriteLine($"Using port: {portName}");
+
+            // Create sender and telegram generator
+            var sender = new SerialSender(portName, 115200);
+            Logger.Info($"Using COM port: {portName}");
+            Console.WriteLine($"Using COM port: {portName}");
 
             var generator = new TelegramGenerator();
             var profile = new SimulationProfile(SimulationMode.Normal);
 
-            Logger.Info($"Opening serial port {autoPort}...");
+            Logger.Info($"Opening serial port {portName}...");
             sender.Open();
 
             while (true)
