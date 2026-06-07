@@ -60,3 +60,22 @@ Menu options (single key, no Enter required):
 
 ## Project Structure
 
+```
+.
+├── CRC
+│   └── DsmrCrc16.cs
+├── Logging
+│   └── Logger.cs
+├── Program.cs
+├── Serial
+│   ├── ComPortDetectorHybrid.cs
+│   └── SerialSender.cs
+├── Simulation
+│   ├── SimulationMode.cs
+│   └── SimulationProfile.cs
+└── Telegrams
+    ├── TelegramGenerator.cs
+    └── Templates
+        ├── DsmrTemplates.cs
+        └── TemplateType.cs
+```
