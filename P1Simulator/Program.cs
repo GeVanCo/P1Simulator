@@ -1,8 +1,10 @@
-﻿using P1Simulator.Serial;
-using P1Simulator.Telegrams;
+﻿using P1Simulator.Logging;
+using P1Simulator.Serial;
 using P1Simulator.Simulation;
-using P1Simulator.Logging;
+using P1Simulator.Telegrams;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace P1Simulator
 {
@@ -63,6 +65,16 @@ namespace P1Simulator
                     Console.WriteLine("\nRestarting simulator...");
                     continue;
                 }
+
+                if (choice == 'a')
+                {
+                    ShowAboutPopup();   // new popup
+                    Console.Clear();
+                    //DrawFixedHeader();
+                    //DrawStatusBar();
+                    //DrawFooter(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
+                    continue;
+                }
             }
         }
 
@@ -105,20 +117,23 @@ namespace P1Simulator
         }
 
         // ───────────────────────────────────────────────────────────────
-        //  FIXED HEADER + STATUS BAR
+        //  FIXED HEADER
         // ───────────────────────────────────────────────────────────────
         static void DrawFixedHeader()
         {
             Console.SetCursorPosition(0, 0);
             Console.WriteLine("──────────────────────────────────────────────────────────────");
-            Console.WriteLine("         Press 'q' to stop | Press 'r' to restart");
+            Console.WriteLine("       'q' -> Stop, Ctrl+C -> interrupt, 'a' -> About");
             Console.WriteLine("──────────────────────────────────────────────────────────────");
-            Console.WriteLine(); // empty line
+            //Console.WriteLine(); // empty line
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  FIXED STATUS BAR
+        // ───────────────────────────────────────────────────────────────
         static void DrawStatusBar()
         {
-            Console.SetCursorPosition(0, 4);
+            Console.SetCursorPosition(0, 3);
             Console.WriteLine(
                 $"   Time: {DateTime.Now:HH:mm:ss}   " +
                 $"Telegrams sent: {_telegramCount}   " +
@@ -127,6 +142,9 @@ namespace P1Simulator
             Console.WriteLine("──────────────────────────────────────────────────────────────");
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  FIXED FOOTER
+        // ───────────────────────────────────────────────────────────────
         static void DrawFooter(string portName, int intervalMs, string mode, int baudRate)
         {
             int row = FooterRow;
@@ -139,7 +157,7 @@ namespace P1Simulator
 
             Console.SetCursorPosition(0, row);
             Console.WriteLine(
-                $" Port: {portName} | Baudrate: {baudRate} | Interval: {intervalMs} ms | Mode: {mode} | Press 'q' to stop, Ctrl-C to interrupt "
+                $" Port: {portName} | Baudrate: {baudRate} | Interval: {intervalMs} ms | Mode: {mode}"
                     .PadRight(Console.WindowWidth - 1)
             );
         }
@@ -189,11 +207,24 @@ namespace P1Simulator
                     if (Console.KeyAvailable)
                     {
                         var key = Console.ReadKey(intercept: true);
+
+                        // Quit
                         if (key.Key == ConsoleKey.Q)
                         {
                             Console.WriteLine("Stopping simulator...");
                             _cts.Cancel();
                             break;
+                        }
+
+                        // About popup
+                        if (key.Key == ConsoleKey.A)
+                        {
+                            ShowAboutPopup();
+                            Console.Clear();
+                            DrawFixedHeader();
+                            DrawStatusBar();
+                            DrawFooter(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
+                            continue;   // resume simulator loop
                         }
                     }
 
@@ -273,7 +304,7 @@ namespace P1Simulator
             {
                 "P1 Simulator",
                 "Version 1.0",
-                "By Geert Vancompernolle (2026)",
+                "By Geert Vancompernolle (c. 2026 - 2026)",
                 "",
                 "A Dutch Smart Meter (DSMR/SMR) telegram generator",
                 "for testing UART serial receivers.",
@@ -297,11 +328,10 @@ namespace P1Simulator
                 Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
             }
 
-            Console.SetCursorPosition(left, top + boxHeight - 1);
+            Console.SetCursorPosition(left, top + boxHeight - 3);
             Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
 
             Console.ReadKey(true); // wait for any key
         }
-
     }
 }
