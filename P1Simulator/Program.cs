@@ -8,6 +8,7 @@ namespace P1Simulator
     internal class Program
     {
         private static CancellationTokenSource _cts = new();
+        private static int _telegramCount = 0;
 
         static async Task Main(string[] args)
         {
@@ -44,6 +45,9 @@ namespace P1Simulator
             }
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  SPLASH SCREEN (unchanged)
+        // ───────────────────────────────────────────────────────────────
         static void ShowSplash(string portName, int intervalMs, string mode, int baudRate)
         {
             Console.Clear();
@@ -76,12 +80,39 @@ namespace P1Simulator
                 Thread.Sleep(1000);
             }
 
-            Console.WriteLine("\n");
+            Console.Clear();
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  FIXED HEADER + STATUS BAR
+        // ───────────────────────────────────────────────────────────────
+        static void DrawFixedHeader()
+        {
+            Console.SetCursorPosition(0, 0);
+            Console.WriteLine("──────────────────────────────────────────────────────────────");
+            Console.WriteLine("         Press 'q' to stop | Press 'r' to restart");
+            Console.WriteLine("──────────────────────────────────────────────────────────────");
+            Console.WriteLine(); // empty line
+        }
+
+        static void DrawStatusBar()
+        {
+            Console.SetCursorPosition(0, 4);
+            Console.WriteLine(
+                $"   Time: {DateTime.Now:HH:mm:ss}   " +
+                $"Telegrams sent: {_telegramCount}   " +
+                $"Status: Running      "
+            );
+            Console.WriteLine("──────────────────────────────────────────────────────────────");
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  MAIN SIMULATOR LOOP
+        // ───────────────────────────────────────────────────────────────
         private static async Task RunSimulator()
         {
             _cts = new CancellationTokenSource();
+            _telegramCount = 0;
 
             Console.CancelKeyPress += OnCancelKeyPress;
 
@@ -103,8 +134,12 @@ namespace P1Simulator
             Logger.Info($"Opening serial port {portName}...");
             sender.Open();
 
-            // ⭐ Show splash screen here
+            // Splash screen
             ShowSplash(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
+
+            // Draw fixed UI
+            DrawFixedHeader();
+            DrawStatusBar();
 
             try
             {
@@ -122,9 +157,17 @@ namespace P1Simulator
                         }
                     }
 
+                    // Update counters + status bar
+                    _telegramCount++;
+                    DrawStatusBar();
+
+                    // Generate telegram
                     string telegram = generator.GenerateTelegram(profile);
 
+                    // Print telegram below UI
+                    Console.SetCursorPosition(0, 7);
                     Console.WriteLine("Sending telegram:");
+                    Console.WriteLine();
                     Console.WriteLine(telegram);
 
                     sender.Send(telegram);
