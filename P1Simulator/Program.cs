@@ -2,13 +2,34 @@
 using P1Simulator.Telegrams;
 using P1Simulator.Simulation;
 using P1Simulator.Logging;
+using System.Runtime.InteropServices;
 
 namespace P1Simulator
 {
     internal class Program
     {
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        //============================================================================
+
         private static CancellationTokenSource _cts = new();
         private static int _telegramCount = 0;
+        static int FooterRow => Console.WindowHeight - 2;
 
         static async Task Main(string[] args)
         {
@@ -106,11 +127,29 @@ namespace P1Simulator
             Console.WriteLine("──────────────────────────────────────────────────────────────");
         }
 
+        static void DrawFooter(string portName, int intervalMs, string mode, int baudRate)
+        {
+            int row = FooterRow;
+
+            // Clamp to avoid beep if window is too small
+            if (row < 0)
+            {
+                row = 0;
+            }
+
+            Console.SetCursorPosition(0, row);
+            Console.WriteLine(
+                $" Port: {portName} | Baudrate: {baudRate} | Interval: {intervalMs} ms | Mode: {mode} | Press 'q' to stop, Ctrl-C to interrupt "
+                    .PadRight(Console.WindowWidth - 1)
+            );
+        }
+
         // ───────────────────────────────────────────────────────────────
         //  MAIN SIMULATOR LOOP
         // ───────────────────────────────────────────────────────────────
         private static async Task RunSimulator()
         {
+            MoveConsoleTo(100, 100);
             _cts = new CancellationTokenSource();
             _telegramCount = 0;
 
@@ -140,6 +179,7 @@ namespace P1Simulator
             // Draw fixed UI
             DrawFixedHeader();
             DrawStatusBar();
+            DrawFooter(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
 
             try
             {
@@ -197,5 +237,71 @@ namespace P1Simulator
             e.Cancel = true; // Prevent immediate termination
             _cts.Cancel();
         }
+        static void SetConsoleWindowLocation(int x, int y)
+        {
+            IntPtr handle = GetConsoleWindow();
+            if (handle == IntPtr.Zero)
+                return;
+
+            // Get current size
+            int width = Console.WindowWidth * 8;   // approx. pixel width per char
+            int height = Console.WindowHeight * 16; // approx. pixel height per line
+
+            MoveWindow(handle, x, y, width, height, true);
+        }
+        static void MoveConsoleTo(int x, int y)
+        {
+            IntPtr handle = GetConsoleWindow();
+            if (handle == IntPtr.Zero)
+                return;
+
+            // Get current window rectangle
+            GetWindowRect(handle, out RECT rect);
+
+            int width = rect.Right - rect.Left;
+            int height = rect.Bottom - rect.Top;
+
+            // Move window to (x,y) but keep same width/height
+            MoveWindow(handle, x, y, width, height, true);
+        }
+
+        static void ShowAboutPopup()
+        {
+            Console.Clear();
+
+            string[] lines =
+            {
+                "P1 Simulator",
+                "Version 1.0",
+                "By Geert Vancompernolle (2026)",
+                "",
+                "A Dutch Smart Meter (DSMR/SMR) telegram generator",
+                "for testing UART serial receivers.",
+                "",
+                "Press any key to return..."
+            };
+
+            int boxWidth = lines.Max(l => l.Length) + 4;
+            int boxHeight = lines.Length + 4;
+
+            int left = (Console.WindowWidth - boxWidth) / 2;
+            int top = (Console.WindowHeight - boxHeight) / 2;
+
+            // Draw box
+            Console.SetCursorPosition(left, top);
+            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                Console.SetCursorPosition(left, top + 1 + i);
+                Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
+            }
+
+            Console.SetCursorPosition(left, top + boxHeight - 1);
+            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+
+            Console.ReadKey(true); // wait for any key
+        }
+
     }
 }
