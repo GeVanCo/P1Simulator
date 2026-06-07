@@ -94,9 +94,10 @@ The simulator uses the **official DSMR 5.0.2 CRC algorithm**:
 
 This ensures compatibility with real Belgian (Fluvius) and Dutch DSMR meters.
 
-- DSMR 5.0.2 specs can be found here: https://www.netbeheernederland.nl/publicatie/dsmr-502-p1-companion-standard
+- DSMR 5.0.2 specs can be found here:  
+https://www.netbeheernederland.nl/publicatie/dsmr-502-p1-companion-standard
 
-- Direct link to PDF file:
+- Direct link to PDF file:  
 https://www.netbeheernederland.nl/sites/default/files/2024-02/dsmr_5.0.2_p1_companion_standard.pdf
 
 ---
