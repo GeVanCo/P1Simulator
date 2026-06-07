@@ -11,6 +11,8 @@ namespace P1Simulator
 
         static async Task Main(string[] args)
         {
+            Console.Title = "P1 Dutch Smart Meter Reader Simulator";
+
             Console.WriteLine("=== P1 Smart Meter Simulator ===");
 
             while (true)
