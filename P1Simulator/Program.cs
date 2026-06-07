@@ -26,18 +26,19 @@ namespace P1Simulator
                 Console.WriteLine("  q -> Quit");
                 Console.Write("> ");
 
-                string? choice = Console.ReadLine()?.Trim().ToLower();
+                ConsoleKeyInfo key = Console.ReadKey(intercept: true);
+                char choice = char.ToLower(key.KeyChar);
 
-                if (choice == "q")
+                if (choice == 'q')
                 {
-                    Console.WriteLine("Goodbye!");
+                    Console.WriteLine("\nGoodbye!");
                     System.Threading.Thread.Sleep(1000);
                     return;
                 }
 
-                if (choice == "r")
+                if (choice == 'r')
                 {
-                    Console.WriteLine("Restarting simulator...");
+                    Console.WriteLine("\nRestarting simulator...");
                     continue;
                 }
             }
