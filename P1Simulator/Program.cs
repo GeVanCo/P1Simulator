@@ -13,8 +13,6 @@ namespace P1Simulator
         {
             Console.Title = "P1 Dutch Smart Meter Reader Simulator";
 
-            Console.WriteLine("=== P1 Smart Meter Simulator ===");
-
             while (true)
             {
                 await RunSimulator();
@@ -46,11 +44,44 @@ namespace P1Simulator
             }
         }
 
+        static void ShowSplash(string portName, int intervalMs, string mode, int baudRate)
+        {
+            Console.Clear();
+
+            Console.WriteLine(@"
+  _____  __    _____ _                 _       _             
+ |  __ \/_ |  / ____(_)               | |     | |            
+ | |__) || | | (___  _ _ __ ___  _   _| | __ _| |_ ___  _ __ 
+ |  ___/ | |  \___ \| | '_ ` _ \| | | | |/ _` | __/ _ \| '__|
+ | |     | |  ____) | | | | | | | |_| | | (_| | || (_) | |   
+ |_|     |_| |_____/|_|_| |_| |_|\__,_|_|\__,_|\__\___/|_|   
+
+ By Geert Vancompernolle (2026)
+                                                             
+");
+
+            Console.WriteLine($" COM Port     : {portName}");
+            Console.WriteLine($" Baudrate     : {baudRate} baud");
+            Console.WriteLine($" Interval     : {intervalMs} ms");
+            Console.WriteLine($" Mode         : {mode}");
+            Console.WriteLine($" CRC          : DSMR CRC16 (0xA001)");
+            Console.WriteLine();
+            Console.WriteLine($" Press 'q' to stop or Ctrl+C to interrupt.");
+            Console.WriteLine();
+
+            string loading = "Starting";
+            for (int i = 0; i < 3; i++)
+            {
+                Console.Write($"\r{loading}{new string('.', i + 1)}   ");
+                Thread.Sleep(1000);
+            }
+
+            Console.WriteLine("\n");
+        }
+
         private static async Task RunSimulator()
         {
             _cts = new CancellationTokenSource();
-
-            Console.WriteLine("Press 'q' to stop or Ctrl+C to interrupt.");
 
             Console.CancelKeyPress += OnCancelKeyPress;
 
@@ -63,7 +94,6 @@ namespace P1Simulator
                 return;
             }
 
-            Console.WriteLine($"Using port: {portName}");
             Logger.Info($"Using COM port: {portName}");
 
             var sender = new SerialSender(portName, 115200);
@@ -72,6 +102,9 @@ namespace P1Simulator
 
             Logger.Info($"Opening serial port {portName}...");
             sender.Open();
+
+            // ⭐ Show splash screen here
+            ShowSplash(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
 
             try
             {

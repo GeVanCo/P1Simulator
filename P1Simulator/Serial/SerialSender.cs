@@ -18,17 +18,17 @@ namespace P1Simulator.Serial
                 WriteTimeout = 500
             };
         }
+        
+        public int BaudRate => _port.BaudRate;
 
         public void Open()
         {
-            Console.WriteLine($"[Serial] Open() called");
             if (_port.IsOpen)
                 return;
 
             try
             {
                 _port.Open();
-                Console.WriteLine($"[Serial] Opened {_port.PortName} at {_port.BaudRate} baud");
             }
             catch (Exception ex)
             {
