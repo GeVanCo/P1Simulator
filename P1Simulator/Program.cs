@@ -7,16 +7,49 @@ namespace P1Simulator
 {
     internal class Program
     {
-        private static readonly CancellationTokenSource _cts = new();
+        private static CancellationTokenSource _cts = new();
 
         static async Task Main(string[] args)
         {
             Console.WriteLine("=== P1 Smart Meter Simulator ===");
-            Console.WriteLine("Press Ctrl+C to stop.");
 
-            // Register graceful shutdown handlers
+            while (true)
+            {
+                await RunSimulator();
+
+                Console.WriteLine();
+                Console.WriteLine("=========================");
+                Console.WriteLine("    Simulator stopped    ");
+                Console.WriteLine("=========================");
+                Console.WriteLine("Press:");
+                Console.WriteLine("  r -> Restart application");
+                Console.WriteLine("  q -> Quit");
+                Console.Write("> ");
+
+                string? choice = Console.ReadLine()?.Trim().ToLower();
+
+                if (choice == "q")
+                {
+                    Console.WriteLine("Goodbye!");
+                    System.Threading.Thread.Sleep(1000);
+                    return;
+                }
+
+                if (choice == "r")
+                {
+                    Console.WriteLine("Restarting simulator...");
+                    continue;
+                }
+            }
+        }
+
+        private static async Task RunSimulator()
+        {
+            _cts = new CancellationTokenSource();
+
+            Console.WriteLine("Press 'q' to stop or Ctrl+C to interrupt.");
+
             Console.CancelKeyPress += OnCancelKeyPress;
-            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
             // Auto-detect COM port
             string? portName = ComPortDetectorHybrid.AutoDetect();
@@ -41,6 +74,18 @@ namespace P1Simulator
             {
                 while (!_cts.Token.IsCancellationRequested)
                 {
+                    // Check for 'q'
+                    if (Console.KeyAvailable)
+                    {
+                        var key = Console.ReadKey(intercept: true);
+                        if (key.Key == ConsoleKey.Q)
+                        {
+                            Console.WriteLine("Stopping simulator...");
+                            _cts.Cancel();
+                            break;
+                        }
+                    }
+
                     string telegram = generator.GenerateTelegram(profile);
 
                     Console.WriteLine("Sending telegram:");
@@ -64,7 +109,6 @@ namespace P1Simulator
                 Logger.Info("Serial port closed.");
 
                 Logger.Flush();
-                Console.WriteLine("Goodbye!");
             }
         }
 
@@ -72,11 +116,6 @@ namespace P1Simulator
         {
             Console.WriteLine("Ctrl+C detected. Stopping...");
             e.Cancel = true; // Prevent immediate termination
-            _cts.Cancel();
-        }
-
-        private static void OnProcessExit(object? sender, EventArgs e)
-        {
             _cts.Cancel();
         }
     }
