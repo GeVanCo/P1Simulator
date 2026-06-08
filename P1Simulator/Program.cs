@@ -155,6 +155,18 @@ namespace P1Simulator
             );
         }
 
+        static void DrawCommandPrompt()
+        {
+            int row = FooterRow + 1;
+
+            if (row >= Console.WindowHeight)
+                row = Console.WindowHeight - 1;
+
+            Console.SetCursorPosition(0, row);
+            Console.Write(" Command: ".PadRight(Console.WindowWidth - 1));
+        }
+
+
         // ───────────────────────────────────────────────────────────────
         //  MAIN SIMULATOR LOOP
         // ───────────────────────────────────────────────────────────────
@@ -194,6 +206,7 @@ namespace P1Simulator
             DrawFixedHeader();
             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
             DrawFooter(portName, sender.BaudRate);
+            DrawCommandPrompt();   // NEW
 
             try
             {
@@ -222,12 +235,14 @@ namespace P1Simulator
                             DrawFixedHeader();
                             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
                             DrawFooter(portName, sender.BaudRate);
+                            DrawCommandPrompt();
                             continue;
                         }
 
                         // -----------------------------------------------------
-                        // COMMANDS (template 3phase, profile solar, crc bad…)
+                        // COMMAND INPUT (dedicated footer line)
                         // -----------------------------------------------------
+                        Console.SetCursorPosition(10, FooterRow + 1); // after "Command: "
                         string? rest = Console.ReadLine();
                         string fullCommand = key.KeyChar + (rest ?? "");
 
@@ -235,6 +250,7 @@ namespace P1Simulator
 
                         DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
                         DrawFooter(portName, sender.BaudRate);
+                        DrawCommandPrompt();
 
                         continue;
                     }
