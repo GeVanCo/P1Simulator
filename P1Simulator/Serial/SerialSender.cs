@@ -6,11 +6,14 @@ namespace P1Simulator.Serial
     public class SerialSender : IDisposable
     {
         private readonly SerialPort _port;
+        private readonly Logger _logger;
 
         public bool IsOpen => _port?.IsOpen ?? false;
 
-        public SerialSender(string portName, int baudRate = 115200)
+        public SerialSender(Logger logger, string portName = "COM3", int baudRate = 115200)
         {
+            _logger = logger;
+
             _port = new SerialPort(portName, baudRate, Parity.None, 8, StopBits.One)
             {
                 NewLine = "\n",
@@ -18,7 +21,7 @@ namespace P1Simulator.Serial
                 WriteTimeout = 500
             };
         }
-        
+
         public int BaudRate => _port.BaudRate;
 
         public void Open()
@@ -33,19 +36,18 @@ namespace P1Simulator.Serial
             catch (Exception ex)
             {
                 Console.WriteLine($"[Serial] ERROR opening port: {ex.Message}");
+                _logger.Error($"Serial open error: {ex.Message}");
             }
         }
 
         public void Send(string data)
         {
             if (_port == null || !_port.IsOpen)
-            {
                 throw new InvalidOperationException("Serial port not open.");
-            }
 
             _port.Write(data);
 
-            Logger.WriteTelegram(data);
+            _logger.WriteTelegram(data);
         }
 
         public void Dispose()

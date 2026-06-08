@@ -34,6 +34,10 @@ namespace P1Simulator.CRC
 
             return crc; // no reflection, no xorout
         }
+        public static ushort Compute(byte[] buffer, int length)
+        {
+            return Compute(buffer.AsSpan(0, length));
+        }
 
         public static string ComputeHex(string telegramWithoutCrc)
         {

@@ -2,9 +2,9 @@
 using P1Simulator.Serial;
 using P1Simulator.Simulation;
 using P1Simulator.Telegrams;
+using P1Simulator.ConsoleUI;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace P1Simulator
 {
@@ -56,7 +56,7 @@ namespace P1Simulator
                 if (choice == 'q')
                 {
                     Console.WriteLine("\nGoodbye!");
-                    System.Threading.Thread.Sleep(1000);
+                    Thread.Sleep(1000);
                     return;
                 }
 
@@ -68,20 +68,17 @@ namespace P1Simulator
 
                 if (choice == 'a')
                 {
-                    ShowAboutPopup();   // new popup
+                    ShowAboutPopup();
                     Console.Clear();
-                    //DrawFixedHeader();
-                    //DrawStatusBar();
-                    //DrawFooter(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
                     continue;
                 }
             }
         }
 
         // ───────────────────────────────────────────────────────────────
-        //  SPLASH SCREEN (unchanged)
+        //  SPLASH SCREEN
         // ───────────────────────────────────────────────────────────────
-        static void ShowSplash(string portName, int intervalMs, string mode, int baudRate)
+        static void ShowSplash(string portName, string template, string profile, bool badCrc, int baudRate)
         {
             Console.Clear();
 
@@ -99,9 +96,9 @@ namespace P1Simulator
 
             Console.WriteLine($" COM Port     : {portName}");
             Console.WriteLine($" Baudrate     : {baudRate} baud");
-            Console.WriteLine($" Interval     : {intervalMs} ms");
-            Console.WriteLine($" Mode         : {mode}");
-            Console.WriteLine($" CRC          : DSMR CRC16 (0xA001)");
+            Console.WriteLine($" Template     : {template}");
+            Console.WriteLine($" Profile      : {profile}");
+            Console.WriteLine($" CRC Mode     : {(badCrc ? "BAD (forced)" : "GOOD")}");
             Console.WriteLine();
             Console.WriteLine($" Press 'q' to stop or Ctrl+C to interrupt.");
             Console.WriteLine();
@@ -125,19 +122,20 @@ namespace P1Simulator
             Console.WriteLine("──────────────────────────────────────────────────────────────");
             Console.WriteLine("       'q' -> Stop, Ctrl+C -> interrupt, 'a' -> About");
             Console.WriteLine("──────────────────────────────────────────────────────────────");
-            //Console.WriteLine(); // empty line
         }
 
         // ───────────────────────────────────────────────────────────────
         //  FIXED STATUS BAR
         // ───────────────────────────────────────────────────────────────
-        static void DrawStatusBar()
+        static void DrawStatusBar(string template, string profile, bool badCrc)
         {
             Console.SetCursorPosition(0, 3);
             Console.WriteLine(
                 $"   Time: {DateTime.Now:HH:mm:ss}   " +
                 $"Telegrams sent: {_telegramCount}   " +
-                $"Status: Running      "
+                $"Template: {template}   " +
+                $"Profile: {profile}   " +
+                $"CRC: {(badCrc ? "BAD" : "GOOD")}   "
             );
             Console.WriteLine("──────────────────────────────────────────────────────────────");
         }
@@ -145,19 +143,14 @@ namespace P1Simulator
         // ───────────────────────────────────────────────────────────────
         //  FIXED FOOTER
         // ───────────────────────────────────────────────────────────────
-        static void DrawFooter(string portName, int intervalMs, string mode, int baudRate)
+        static void DrawFooter(string portName, int baudRate)
         {
             int row = FooterRow;
-
-            // Clamp to avoid beep if window is too small
-            if (row < 0)
-            {
-                row = 0;
-            }
+            if (row < 0) row = 0;
 
             Console.SetCursorPosition(0, row);
             Console.WriteLine(
-                $" Port: {portName} | Baudrate: {baudRate} | Interval: {intervalMs} ms | Mode: {mode}"
+                $" Port: {portName} | Baudrate: {baudRate}"
                     .PadRight(Console.WindowWidth - 1)
             );
         }
@@ -173,37 +166,42 @@ namespace P1Simulator
 
             Console.CancelKeyPress += OnCancelKeyPress;
 
-            // Auto-detect COM port
-            string? portName = ComPortDetectorHybrid.AutoDetect();
+            // --- NEW: Logger + Managers + Generator + CommandParser ---
+            var logger = new Logger();
+            var templates = new TemplateManager();
+            var profiles = new ProfileManager();
+            var generator = new TelegramGenerator(templates, profiles);
+            var commands = new CommandParser(templates, profiles, generator);
 
+            // --- NEW: Auto-detect COM port ---
+            string? portName = ComPortDetectorHybrid.AutoDetect();
             if (portName == null)
             {
                 Console.WriteLine("ERROR: No USB‑UART adapter detected.");
                 return;
             }
 
-            Logger.Info($"Using COM port: {portName}");
+            logger.Info($"Using COM port: {portName}");
 
-            var sender = new SerialSender(portName, 115200);
-            var generator = new TelegramGenerator();
-            var profile = new SimulationProfile(SimulationMode.Normal);
-
-            Logger.Info($"Opening serial port {portName}...");
+            // --- NEW: SerialSender with logger ---
+            var sender = new SerialSender(logger, portName);
             sender.Open();
 
             // Splash screen
-            ShowSplash(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
+            ShowSplash(portName, commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc, sender.BaudRate);
 
             // Draw fixed UI
             DrawFixedHeader();
-            DrawStatusBar();
-            DrawFooter(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
+            DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+            DrawFooter(portName, sender.BaudRate);
 
             try
             {
                 while (!_cts.Token.IsCancellationRequested)
                 {
-                    // Check for 'q'
+                    // ---------------------------------------------------------
+                    // HOTKEYS (q, a) — single key, no Enter required
+                    // ---------------------------------------------------------
                     if (Console.KeyAvailable)
                     {
                         var key = Console.ReadKey(intercept: true);
@@ -222,20 +220,33 @@ namespace P1Simulator
                             ShowAboutPopup();
                             Console.Clear();
                             DrawFixedHeader();
-                            DrawStatusBar();
-                            DrawFooter(portName, profile.IntervalMs, profile.Mode.ToString(), sender.BaudRate);
-                            continue;   // resume simulator loop
+                            DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                            DrawFooter(portName, sender.BaudRate);
+                            continue;
                         }
+
+                        // -----------------------------------------------------
+                        // COMMANDS (template 3phase, profile solar, crc bad…)
+                        // -----------------------------------------------------
+                        string? rest = Console.ReadLine();
+                        string fullCommand = key.KeyChar + (rest ?? "");
+
+                        commands.Handle(fullCommand);
+
+                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                        DrawFooter(portName, sender.BaudRate);
+
+                        continue;
                     }
 
-                    // Update counters + status bar
+                    // ---------------------------------------------------------
+                    // NORMAL TELEGRAM LOOP
+                    // ---------------------------------------------------------
                     _telegramCount++;
-                    DrawStatusBar();
+                    DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
 
-                    // Generate telegram
-                    string telegram = generator.GenerateTelegram(profile);
+                    string telegram = generator.Generate(commands.CurrentTemplate, commands.CurrentProfile);
 
-                    // Print telegram below UI
                     Console.SetCursorPosition(0, 7);
                     Console.WriteLine("Sending telegram:");
                     Console.WriteLine();
@@ -243,7 +254,7 @@ namespace P1Simulator
 
                     sender.Send(telegram);
 
-                    await Task.Delay(profile.IntervalMs, _cts.Token);
+                    await Task.Delay(1000, _cts.Token);
                 }
             }
             catch (TaskCanceledException)
@@ -253,46 +264,33 @@ namespace P1Simulator
             finally
             {
                 Console.WriteLine("Shutting down...");
-                Logger.Info("Shutting down simulator...");
+                logger.Info("Shutting down simulator...");
 
                 sender.Dispose();
-                Logger.Info("Serial port closed.");
+                logger.Info("Serial port closed.");
 
-                Logger.Flush();
+                logger.Flush();
             }
         }
 
         private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
         {
             Console.WriteLine("Ctrl+C detected. Stopping...");
-            e.Cancel = true; // Prevent immediate termination
+            e.Cancel = true;
             _cts.Cancel();
         }
-        static void SetConsoleWindowLocation(int x, int y)
-        {
-            IntPtr handle = GetConsoleWindow();
-            if (handle == IntPtr.Zero)
-                return;
 
-            // Get current size
-            int width = Console.WindowWidth * 8;   // approx. pixel width per char
-            int height = Console.WindowHeight * 16; // approx. pixel height per line
-
-            MoveWindow(handle, x, y, width, height, true);
-        }
         static void MoveConsoleTo(int x, int y)
         {
             IntPtr handle = GetConsoleWindow();
             if (handle == IntPtr.Zero)
                 return;
 
-            // Get current window rectangle
             GetWindowRect(handle, out RECT rect);
 
             int width = rect.Right - rect.Left;
             int height = rect.Bottom - rect.Top;
 
-            // Move window to (x,y) but keep same width/height
             MoveWindow(handle, x, y, width, height, true);
         }
 
@@ -318,7 +316,6 @@ namespace P1Simulator
             int left = (Console.WindowWidth - boxWidth) / 2;
             int top = (Console.WindowHeight - boxHeight) / 2;
 
-            // Draw box
             Console.SetCursorPosition(left, top);
             Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
 
@@ -331,7 +328,7 @@ namespace P1Simulator
             Console.SetCursorPosition(left, top + boxHeight - 3);
             Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
 
-            Console.ReadKey(true); // wait for any key
+            Console.ReadKey(true);
         }
     }
 }

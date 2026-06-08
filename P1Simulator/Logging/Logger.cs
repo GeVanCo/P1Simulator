@@ -1,13 +1,14 @@
 ﻿using System;
+using System.IO;
 
 namespace P1Simulator.Logging
 {
-    public static class Logger
+    public class Logger
     {
-        private static readonly object _lock = new object();
-        private static readonly string _logFile;
+        private readonly object _lock = new object();
+        private readonly string _logFile;
 
-        static Logger()
+        public Logger()
         {
             string folder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
             Directory.CreateDirectory(folder);
@@ -15,22 +16,22 @@ namespace P1Simulator.Logging
             _logFile = Path.Combine(folder, $"p1sim_{DateTime.Now:yyyyMMdd_HHmmss}.log");
         }
 
-        public static void Info(string message)
+        public void Info(string message)
         {
             Write("INFO", message);
         }
 
-        public static void Error(string message)
+        public void Error(string message)
         {
             Write("ERROR", message);
         }
 
-        public static void WriteTelegram(string telegram)
+        public void WriteTelegram(string telegram)
         {
             Write("TELEGRAM", telegram.Replace("\r", "").Replace("\n", "\\n"));
         }
 
-        private static void Write(string level, string message)
+        private void Write(string level, string message)
         {
             lock (_lock)
             {
@@ -39,20 +40,14 @@ namespace P1Simulator.Logging
             }
         }
 
-        /// <summary>
-        /// Exists for API completeness. No buffering is used, so nothing to flush.
-        /// </summary>
-        public static void Flush()
+        public void Flush()
         {
-            // No-op: File.AppendAllText writes immediately.
+            // No buffering, nothing to flush.
         }
 
-        /// <summary>
-        /// Included for graceful shutdown symmetry.
-        /// </summary>
-        public static void Dispose()
+        public void Dispose()
         {
-            // No resources to dispose yet, but method exists for future expansion.
+            // No resources yet, but method exists for future expansion.
         }
     }
 }

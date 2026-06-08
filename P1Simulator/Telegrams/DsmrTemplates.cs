@@ -1,5 +1,4 @@
-﻿
-namespace P1Simulator.Telegrams.Templates
+﻿namespace P1Simulator.Telegrams
 {
     public static class DsmrTemplates
     {
