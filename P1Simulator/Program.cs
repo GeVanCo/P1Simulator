@@ -126,9 +126,9 @@ namespace P1Simulator
         static void DrawFixedHeader()
         {
             Console.SetCursorPosition(0, 0);
-            Console.WriteLine("──────────────────────────────────────────────────────────────");
-            Console.WriteLine("       'q' -> Stop, Ctrl+C -> interrupt, 'a' -> About");
-            Console.WriteLine("──────────────────────────────────────────────────────────────");
+            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
+            Console.WriteLine("           'q' -> Stop, Ctrl+C -> interrupt, 'a' -> About, 'h' -> help");
+            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -139,12 +139,12 @@ namespace P1Simulator
             Console.SetCursorPosition(0, 3);
             Console.WriteLine(
                 $"   Time: {DateTime.Now:HH:mm:ss}   " +
-                $"Telegrams sent: {_telegramCount}   " +
+                $"Telegrams sent: {_telegramCount:D5}   " +
                 $"Template: {template}   " +
                 $"Profile: {profile}   " +
                 $"CRC: {(badCrc ? "BAD" : "GOOD")}   "
             );
-            Console.WriteLine("──────────────────────────────────────────────────────────────");
+            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -152,10 +152,11 @@ namespace P1Simulator
         // ───────────────────────────────────────────────────────────────
         static void DrawFooter(string portName, int baudRate)
         {
-            int row = FooterRow;
+            int row = FooterRow - 1;
             if (row < 0) row = 0;
 
             Console.SetCursorPosition(0, row);
+            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
             Console.WriteLine(
                 $" Port: {portName} | Baudrate: {baudRate}"
                     .PadRight(Console.WindowWidth - 1)
@@ -415,7 +416,7 @@ namespace P1Simulator
         {
             Console.Clear();
 
-            string[] lines =
+            List<string> lines = new()
             {
                 "P1 Simulator",
                 "Version 1.0",
@@ -427,25 +428,7 @@ namespace P1Simulator
                 "Press any key to return..."
             };
 
-            int boxWidth = lines.Max(l => l.Length) + 4;
-            int boxHeight = lines.Length + 4;
-
-            int left = (Console.WindowWidth - boxWidth) / 2;
-            int top = (Console.WindowHeight - boxHeight) / 2;
-
-            Console.SetCursorPosition(left, top);
-            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
-
-            for (int i = 0; i < lines.Length; i++)
-            {
-                Console.SetCursorPosition(left, top + 1 + i);
-                Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
-            }
-
-            Console.SetCursorPosition(left, top + boxHeight - 3);
-            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
-
-            Console.ReadKey(true);
+            DrawUnicodePopup("P1 Simulator - Help", lines);
         }
 
         static void ShowHelpPopup(CommandParser commands)
@@ -475,25 +458,7 @@ namespace P1Simulator
             lines.Add("");
             lines.Add("Press any key to return...");
 
-            int boxWidth = lines.Max(l => l.Length) + 4;
-            int boxHeight = lines.Count + 4;
-
-            int left = (Console.WindowWidth - boxWidth) / 2;
-            int top = (Console.WindowHeight - boxHeight) / 2;
-
-            Console.SetCursorPosition(left, top);
-            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
-
-            for (int i = 0; i < lines.Count; i++)
-            {
-                Console.SetCursorPosition(left, top + 1 + i);
-                Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
-            }
-
-            Console.SetCursorPosition(left, top + boxHeight - 3);
-            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
-
-            Console.ReadKey(true);
+            DrawUnicodePopup("P1 Simulator - Help", lines);
         }
 
         static void ShowListPopup(string title, IEnumerable<string> items)
@@ -512,23 +477,85 @@ namespace P1Simulator
             lines.Add("");
             lines.Add("Press any key to return...");
 
-            int boxWidth = lines.Max(l => l.Length) + 4;
+            DrawUnicodePopup("P1 Simulator - Help", lines);
+        }
+
+        static void DrawUnicodePopup(string title, List<string> lines)
+        {
+            Console.Clear();
+
+            int boxWidth = Math.Max(
+                Math.Max(title.Length, lines.Max(l => l.Length)) + 4,
+                30
+            );
+
             int boxHeight = lines.Count + 4;
 
             int left = (Console.WindowWidth - boxWidth) / 2;
             int top = (Console.WindowHeight - boxHeight) / 2;
 
+            // Top border
             Console.SetCursorPosition(left, top);
-            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+            Console.WriteLine("┌" + new string('─', boxWidth - 2) + "┐");
 
+            // Title
+            Console.SetCursorPosition(left, top + 1);
+            Console.WriteLine("│ " + title.PadRight(boxWidth - 4) + " │");
+
+            // Separator
+            Console.SetCursorPosition(left, top + 2);
+            Console.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
+
+            // Content
             for (int i = 0; i < lines.Count; i++)
             {
-                Console.SetCursorPosition(left, top + 1 + i);
-                Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
+                Console.SetCursorPosition(left, top + 3 + i);
+                Console.WriteLine("│ " + lines[i].PadRight(boxWidth - 4) + " │");
             }
 
-            Console.SetCursorPosition(left, top + boxHeight - 3);
-            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+            // Bottom border
+            Console.SetCursorPosition(left, top + boxHeight - 1);
+            Console.WriteLine("└" + new string('─', boxWidth - 2) + "┘");
+
+            Console.ReadKey(true);
+        }
+
+        static void DrawRoundedPopup(string title, List<string> lines)
+        {
+            Console.Clear();
+
+            int boxWidth = Math.Max(
+                Math.Max(title.Length, lines.Max(l => l.Length)) + 4,
+                30
+            );
+
+            int boxHeight = lines.Count + 4;
+
+            int left = (Console.WindowWidth - boxWidth) / 2;
+            int top = (Console.WindowHeight - boxHeight) / 2;
+
+            // Top border (rounded)
+            Console.SetCursorPosition(left, top);
+            Console.WriteLine("╭" + new string('─', boxWidth - 2) + "╮");
+
+            // Title
+            Console.SetCursorPosition(left, top + 1);
+            Console.WriteLine("│ " + title.PadRight(boxWidth - 4) + " │");
+
+            // Separator
+            Console.SetCursorPosition(left, top + 2);
+            Console.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
+
+            // Content
+            for (int i = 0; i < lines.Count; i++)
+            {
+                Console.SetCursorPosition(left, top + 3 + i);
+                Console.WriteLine("│ " + lines[i].PadRight(boxWidth - 4) + " │");
+            }
+
+            // Bottom border (rounded)
+            Console.SetCursorPosition(left, top + boxHeight - 1);
+            Console.WriteLine("╰" + new string('─', boxWidth - 2) + "╯");
 
             Console.ReadKey(true);
         }
