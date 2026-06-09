@@ -253,9 +253,10 @@ namespace P1Simulator
                             continue;
                         }
 
+                        // Help popup
                         if (key.Key == ConsoleKey.H)
                         {
-                            ShowHelpPopup();
+                            ShowHelpPopup(commands);
                             Console.Clear();
                             DrawFixedHeader();
                             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
@@ -437,34 +438,35 @@ namespace P1Simulator
             Console.ReadKey(true);
         }
 
-        static void ShowHelpPopup()
+        static void ShowHelpPopup(CommandParser commands)
         {
             Console.Clear();
 
-            string[] lines =
-            {
+            var cmdList = commands.GetCommands();
+
+            List<string> lines = new()
+    {
         "P1 Simulator - Help",
         "",
         "Available Commands:",
-        "",
-        "  template <name>   - Switch to a different telegram template",
-        "  profile           - fixed | dynamic | solar | ev",
-        "  crc               - good | bad",
-        "  list              - List available templates and profiles",
-        "  send              - Immediately send one telegram",
-        "  clear             - Clear the telegram output area",
-        "",
-        "Hotkeys:",
-        "",
-        "  q   - Quit simulator",
-        "  a   - About screen",
-        "  h   - This help screen",
-        "",
-        "Press any key to return..."
+        ""
     };
 
+            // Dynamically list commands with descriptions
+            foreach (var entry in cmdList.OrderBy(e => e.Key))
+                lines.Add("  " + entry.Value);
+
+            lines.Add("");
+            lines.Add("Hotkeys:");
+            lines.Add("");
+            lines.Add("  q   - Quit simulator");
+            lines.Add("  a   - About screen");
+            lines.Add("  h   - Help screen");
+            lines.Add("");
+            lines.Add("Press any key to return...");
+
             int boxWidth = lines.Max(l => l.Length) + 4;
-            int boxHeight = lines.Length + 4;
+            int boxHeight = lines.Count + 4;
 
             int left = (Console.WindowWidth - boxWidth) / 2;
             int top = (Console.WindowHeight - boxHeight) / 2;
@@ -472,7 +474,7 @@ namespace P1Simulator
             Console.SetCursorPosition(left, top);
             Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
 
-            for (int i = 0; i < lines.Length; i++)
+            for (int i = 0; i < lines.Count; i++)
             {
                 Console.SetCursorPosition(left, top + 1 + i);
                 Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
@@ -483,6 +485,7 @@ namespace P1Simulator
 
             Console.ReadKey(true);
         }
+
 
         static void ClearTelegramArea()
         {

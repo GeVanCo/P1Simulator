@@ -13,6 +13,16 @@ namespace P1Simulator.ConsoleUI
         private readonly ProfileManager _profiles;
         private readonly TelegramGenerator _generator;
 
+        // ⭐ NEW: Dictionary of commands → description
+        private readonly Dictionary<string, string> _commandDescriptions =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                { "template", "template <name>           - Switch to a different telegram template" },
+                { "profile",  "profile <name>            - Switch to a different meter profile" },
+                { "crc",      "crc <good|bad>            - Set CRC mode" },
+                { "list",     "list <templates|profiles> - List available templates or profiles" }
+            };
+
         public string CurrentTemplate { get; private set; } = "1phase";
         public string CurrentProfile { get; private set; } = "fixed";
 
@@ -24,6 +34,14 @@ namespace P1Simulator.ConsoleUI
             _templates = templates;
             _profiles = profiles;
             _generator = generator;
+        }
+
+        /// <summary>
+        /// ⭐ NEW: Expose commands for dynamic help screen.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> GetCommands()
+        {
+            return _commandDescriptions;
         }
 
         /// <summary>
