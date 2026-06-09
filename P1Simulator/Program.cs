@@ -31,7 +31,14 @@ namespace P1Simulator
 
         private static CancellationTokenSource _cts = new();
         private static int _telegramCount = 0;
-        static int FooterRow => Console.WindowHeight - 2;
+
+        // ⭐ Footer moved up one row (Option 1)
+        static int FooterRow => Console.WindowHeight - 3;
+
+        private static readonly List<string> _history = new();
+        private static int _historyIndex = -1;
+
+        //============================================================================
 
         static async Task Main(string[] args)
         {
@@ -141,7 +148,7 @@ namespace P1Simulator
         }
 
         // ───────────────────────────────────────────────────────────────
-        //  FIXED FOOTER
+        //  FIXED FOOTER (moved up one row)
         // ───────────────────────────────────────────────────────────────
         static void DrawFooter(string portName, int baudRate)
         {
@@ -155,17 +162,26 @@ namespace P1Simulator
             );
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  COMMAND PROMPT (moved up one row)
+        // ───────────────────────────────────────────────────────────────
         static void DrawCommandPrompt()
         {
             int row = FooterRow + 1;
 
             if (row >= Console.WindowHeight)
-                row = Console.WindowHeight - 1;
+                row = Console.WindowHeight - 2;
 
             Console.SetCursorPosition(0, row);
             Console.Write(" Command: ".PadRight(Console.WindowWidth - 1));
         }
 
+        private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+        {
+            Console.WriteLine("Ctrl+C detected. Stopping...");
+            e.Cancel = true;
+            _cts.Cancel();
+        }
 
         // ───────────────────────────────────────────────────────────────
         //  MAIN SIMULATOR LOOP
@@ -178,7 +194,6 @@ namespace P1Simulator
 
             Console.CancelKeyPress += OnCancelKeyPress;
 
-            // --- NEW: Logger + Managers + Generator + CommandParser ---
             var logger = new Logger();
             var templates = new TemplateManager();
             var profiles = new ProfileManager();
@@ -202,7 +217,6 @@ namespace P1Simulator
             // Splash screen
             ShowSplash(portName, commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc, sender.BaudRate);
 
-            // Draw fixed UI
             DrawFixedHeader();
             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
             DrawFooter(portName, sender.BaudRate);
@@ -240,17 +254,86 @@ namespace P1Simulator
                         }
 
                         // -----------------------------------------------------
-                        // COMMAND INPUT (dedicated footer line)
+                        // COMMAND INPUT (footer line + history)
                         // -----------------------------------------------------
-                        Console.SetCursorPosition(10, FooterRow + 1); // after "Command: "
-                        string? rest = Console.ReadLine();
-                        string fullCommand = key.KeyChar + (rest ?? "");
+                        string buffer = key.KeyChar.ToString();
+                        _historyIndex = _history.Count;
 
-                        commands.Handle(fullCommand);
+                        Console.SetCursorPosition(10, FooterRow + 1);
+                        Console.Write(new string(' ', Console.WindowWidth - 10));
+                        Console.SetCursorPosition(10, FooterRow + 1);
+                        Console.Write(buffer);
+
+                        while (true)
+                        {
+                            var k = Console.ReadKey(intercept: true);
+
+                            if (k.Key == ConsoleKey.Enter)
+                                break;
+
+                            if (k.Key == ConsoleKey.Backspace)
+                            {
+                                if (buffer.Length > 0)
+                                {
+                                    buffer = buffer[..^1];
+                                    Console.SetCursorPosition(10, FooterRow + 1);
+                                    Console.Write(new string(' ', Console.WindowWidth - 10));
+                                    Console.SetCursorPosition(10, FooterRow + 1);
+                                    Console.Write(buffer);
+                                }
+                                continue;
+                            }
+
+                            if (k.Key == ConsoleKey.UpArrow)
+                            {
+                                if (_history.Count > 0 && _historyIndex > 0)
+                                {
+                                    _historyIndex--;
+                                    buffer = _history[_historyIndex];
+                                }
+
+                                Console.SetCursorPosition(10, FooterRow + 1);
+                                Console.Write(new string(' ', Console.WindowWidth - 10));
+                                Console.SetCursorPosition(10, FooterRow + 1);
+                                Console.Write(buffer);
+                                continue;
+                            }
+
+                            if (k.Key == ConsoleKey.DownArrow)
+                            {
+                                if (_historyIndex < _history.Count - 1)
+                                {
+                                    _historyIndex++;
+                                    buffer = _history[_historyIndex];
+                                }
+                                else
+                                {
+                                    _historyIndex = _history.Count;
+                                    buffer = "";
+                                }
+
+                                Console.SetCursorPosition(10, FooterRow + 1);
+                                Console.Write(new string(' ', Console.WindowWidth - 10));
+                                Console.SetCursorPosition(10, FooterRow + 1);
+                                Console.Write(buffer);
+                                continue;
+                            }
+
+                            buffer += k.KeyChar;
+                            Console.Write(k.KeyChar);
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(buffer))
+                            _history.Add(buffer);
+
+                        commands.Handle(buffer);
 
                         DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
                         DrawFooter(portName, sender.BaudRate);
-                        DrawCommandPrompt();
+
+                        Console.SetCursorPosition(10, FooterRow + 1);
+                        Console.Write(new string(' ', Console.WindowWidth - 10));
+                        Console.SetCursorPosition(10, FooterRow + 1);
 
                         continue;
                     }
@@ -260,6 +343,8 @@ namespace P1Simulator
                     // ---------------------------------------------------------
                     _telegramCount++;
                     DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+
+                    ClearTelegramArea();
 
                     string telegram = generator.Generate(commands.CurrentTemplate, commands.CurrentProfile);
 
@@ -275,7 +360,6 @@ namespace P1Simulator
             }
             catch (TaskCanceledException)
             {
-                // Expected on shutdown
             }
             finally
             {
@@ -289,12 +373,7 @@ namespace P1Simulator
             }
         }
 
-        private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
-        {
-            Console.WriteLine("Ctrl+C detected. Stopping...");
-            e.Cancel = true;
-            _cts.Cancel();
-        }
+        //============================================================================
 
         static void MoveConsoleTo(int x, int y)
         {
@@ -345,6 +424,15 @@ namespace P1Simulator
             Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
 
             Console.ReadKey(true);
+        }
+
+        static void ClearTelegramArea()
+        {
+            for (int row = 7; row < FooterRow - 2; row++)
+            {
+                Console.SetCursorPosition(0, row);
+                Console.Write(new string(' ', Console.WindowWidth - 1));
+            }
         }
     }
 }
