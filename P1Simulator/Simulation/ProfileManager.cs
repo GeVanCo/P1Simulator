@@ -7,8 +7,7 @@ namespace P1Simulator.Simulation
     /// </summary>
     public class ProfileManager
     {
-        private readonly Dictionary<string, ISimulationProfile> _profiles =
-            new Dictionary<string, ISimulationProfile>();
+        private readonly Dictionary<string, ISimulationProfile> _profiles = [];
 
         public ProfileManager()
         {
