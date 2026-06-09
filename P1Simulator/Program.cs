@@ -253,6 +253,17 @@ namespace P1Simulator
                             continue;
                         }
 
+                        if (key.Key == ConsoleKey.H)
+                        {
+                            ShowHelpPopup();
+                            Console.Clear();
+                            DrawFixedHeader();
+                            DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                            DrawFooter(portName, sender.BaudRate);
+                            DrawCommandPrompt();
+                            continue;
+                        }
+
                         // -----------------------------------------------------
                         // COMMAND INPUT (footer line + history)
                         // -----------------------------------------------------
@@ -404,6 +415,52 @@ namespace P1Simulator
                 "",
                 "Press any key to return..."
             };
+
+            int boxWidth = lines.Max(l => l.Length) + 4;
+            int boxHeight = lines.Length + 4;
+
+            int left = (Console.WindowWidth - boxWidth) / 2;
+            int top = (Console.WindowHeight - boxHeight) / 2;
+
+            Console.SetCursorPosition(left, top);
+            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                Console.SetCursorPosition(left, top + 1 + i);
+                Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
+            }
+
+            Console.SetCursorPosition(left, top + boxHeight - 3);
+            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+
+            Console.ReadKey(true);
+        }
+
+        static void ShowHelpPopup()
+        {
+            Console.Clear();
+
+            string[] lines =
+            {
+        "P1 Simulator - Help",
+        "",
+        "Available Commands:",
+        "",
+        "  template <name>   - Switch to a different telegram template",
+        "  profile <name>    - Switch to a different meter profile",
+        "  badcrc on/off     - Enable or disable forced bad CRC",
+        "  send              - Immediately send one telegram",
+        "  clear             - Clear the telegram output area",
+        "",
+        "Hotkeys:",
+        "",
+        "  q   - Quit simulator",
+        "  a   - About screen",
+        "  h   - This help screen",
+        "",
+        "Press any key to return..."
+    };
 
             int boxWidth = lines.Max(l => l.Length) + 4;
             int boxHeight = lines.Length + 4;
