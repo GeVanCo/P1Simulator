@@ -153,15 +153,11 @@ namespace P1Simulator.ConsoleUI
             switch (what.ToLower())
             {
                 case "templates":
-                    Console.WriteLine("Available templates:");
-                    foreach (var t in _templates.List())
-                        Console.WriteLine($" - {t}");
+                    OnListRequested?.Invoke("Available Templates", _templates.List());
                     break;
 
                 case "profiles":
-                    Console.WriteLine("Available profiles:");
-                    foreach (var p in _profiles.List())
-                        Console.WriteLine($" - {p}");
+                    OnListRequested?.Invoke("Available Profiles", _profiles.List());
                     break;
 
                 default:

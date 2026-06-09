@@ -214,6 +214,16 @@ namespace P1Simulator
             var sender = new SerialSender(logger, portName);
             sender.Open();
 
+            commands.OnListRequested += (title, items) =>
+            {
+                ShowListPopup(title, items);
+                Console.Clear();
+                DrawFixedHeader();
+                DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                DrawFooter(portName, sender.BaudRate);
+                DrawCommandPrompt();
+            };
+
             // Splash screen
             ShowSplash(portName, commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc, sender.BaudRate);
 
@@ -486,6 +496,42 @@ namespace P1Simulator
             Console.ReadKey(true);
         }
 
+        static void ShowListPopup(string title, IEnumerable<string> items)
+        {
+            Console.Clear();
+
+            List<string> lines = new()
+    {
+        title,
+        ""
+    };
+
+            foreach (var item in items)
+                lines.Add("  " + item);
+
+            lines.Add("");
+            lines.Add("Press any key to return...");
+
+            int boxWidth = lines.Max(l => l.Length) + 4;
+            int boxHeight = lines.Count + 4;
+
+            int left = (Console.WindowWidth - boxWidth) / 2;
+            int top = (Console.WindowHeight - boxHeight) / 2;
+
+            Console.SetCursorPosition(left, top);
+            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                Console.SetCursorPosition(left, top + 1 + i);
+                Console.WriteLine("| " + lines[i].PadRight(boxWidth - 4) + " |");
+            }
+
+            Console.SetCursorPosition(left, top + boxHeight - 3);
+            Console.WriteLine("+" + new string('-', boxWidth - 2) + "+");
+
+            Console.ReadKey(true);
+        }
 
         static void ClearTelegramArea()
         {
