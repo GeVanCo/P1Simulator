@@ -463,15 +463,15 @@ namespace P1Simulator
     };
 
             // Dynamically list commands with descriptions
-            foreach (var entry in cmdList.OrderBy(e => e.Key))
+            foreach (var entry in cmdList)
                 lines.Add("  " + entry.Value);
 
             lines.Add("");
             lines.Add("Hotkeys:");
             lines.Add("");
-            lines.Add("  q   - Quit simulator");
             lines.Add("  a   - About screen");
             lines.Add("  h   - Help screen");
+            lines.Add("  q   - Quit simulator");
             lines.Add("");
             lines.Add("Press any key to return...");
 
