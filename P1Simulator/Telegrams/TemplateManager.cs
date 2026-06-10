@@ -3,41 +3,40 @@
 namespace P1Simulator.Telegrams
 {
     /// <summary>
-    /// Manages all DSMR telegram templates and provides lookup by name.
+    /// Manages DSMR templates stored in DsmrTemplates.cs.
     /// </summary>
     public class TemplateManager
     {
-        private readonly Dictionary<string, TemplateBase> _templates =
-            new Dictionary<string, TemplateBase>();
+        private readonly Dictionary<string, string> _templates =
+            new Dictionary<string, string>();
 
         public TemplateManager()
         {
-            // Register built‑in templates
-            Register(new Template1Phase());
-            Register(new Template3Phase());
-            Register(new TemplateGas());
+            // Register all templates from DsmrTemplates.cs
+            Register("basic", DsmrTemplates.Basic);
+            Register("1phase", DsmrTemplates.ElectricitySinglePhase);
+            Register("3phase", DsmrTemplates.ElectricityThreePhase);
+            Register("gas", DsmrTemplates.Gas);
+            Register("capacity", DsmrTemplates.CapacityTariff);
+            Register("minimal", DsmrTemplates.Minimal);
+            Register("FullDsmr", DsmrTemplates.FullDsmr);
+
+            // Future:
+            // Register("water", DsmrTemplates.Water);
+            // Register("heat", DsmrTemplates.Heat);
+            // Register("full", DsmrTemplates.FullDsmr);
         }
 
-        /// <summary>
-        /// Registers a template by its unique Name.
-        /// </summary>
-        public void Register(TemplateBase template)
+        public void Register(string name, string template)
         {
-            _templates[template.Name] = template;
+            _templates[name.ToLower()] = template;
         }
 
-        /// <summary>
-        /// Retrieves a template by name (e.g. "1phase", "3phase", "gas").
-        /// Returns null if not found.
-        /// </summary>
-        public TemplateBase? Get(string name)
+        public string? Get(string name)
         {
-            return _templates.TryGetValue(name, out var t) ? t : null;
+            return _templates.TryGetValue(name.ToLower(), out var t) ? t : null;
         }
 
-        /// <summary>
-        /// Returns all registered template names.
-        /// </summary>
         public IEnumerable<string> List()
         {
             return _templates.Keys;

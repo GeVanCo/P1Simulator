@@ -43,7 +43,7 @@ namespace P1Simulator.Telegrams
             var values = profile.GenerateValues();
 
             // 2) Apply placeholders to template
-            string body = template.ApplyPlaceholders(values);
+            string body = TemplateProcessor.ApplyPlaceholders(template, values);
 
             // 3) Convert to bytes for CRC calculation
             byte[] bytes = Encoding.ASCII.GetBytes(body);

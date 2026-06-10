@@ -29,18 +29,35 @@ namespace P1Simulator.Simulation
         {
             return new Dictionary<string, string>
             {
-                ["%IMPORT"] = Import.ToString("F3"),
-                ["%EXPORT"] = Export.ToString("F3"),
+                // Timestamps
+                ["{TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
+                ["{GAS_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
 
-                ["%VOLTAGE_L1"] = VoltageL1.ToString("F1"),
-                ["%VOLTAGE_L2"] = VoltageL2.ToString("F1"),
-                ["%VOLTAGE_L3"] = VoltageL3.ToString("F1"),
+                // Energy totals
+                ["{IMPORT_LOW}"] = Import.ToString("F3"),
+                ["{IMPORT_HIGH}"] = Import.ToString("F3"),
+                ["{EXPORT_LOW}"] = Export.ToString("F3"),
+                ["{EXPORT_HIGH}"] = Export.ToString("F3"),
 
-                ["%CURRENT_L1"] = CurrentL1.ToString("F1"),
-                ["%CURRENT_L2"] = CurrentL2.ToString("F1"),
-                ["%CURRENT_L3"] = CurrentL3.ToString("F1"),
+                // Instantaneous power
+                ["{POWER_IMPORT}"] = (VoltageL1 * CurrentL1 / 1000.0).ToString("F3"),
+                ["{POWER_EXPORT}"] = "0.000",
 
-                ["%GAS"] = Gas.ToString("F3")
+                // Voltages
+                ["{VOLTAGE_L1}"] = VoltageL1.ToString("F1"),
+                ["{VOLTAGE_L2}"] = VoltageL2.ToString("F1"),
+                ["{VOLTAGE_L3}"] = VoltageL3.ToString("F1"),
+
+                // Currents
+                ["{CURRENT_L1}"] = CurrentL1.ToString("F1"),
+                ["{CURRENT_L2}"] = CurrentL2.ToString("F1"),
+                ["{CURRENT_L3}"] = CurrentL3.ToString("F1"),
+
+                // Gas
+                ["{GAS_M3}"] = Gas.ToString("F3"),
+
+                // Capacity tariff
+                ["{MONTHLY_PEAK}"] = "3.456" // or a property you add later
             };
         }
     }
