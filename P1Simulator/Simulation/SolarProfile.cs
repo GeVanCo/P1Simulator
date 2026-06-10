@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Simulation
 {
     public class SolarProfile : ISimulationProfile
@@ -34,7 +32,11 @@ namespace P1Simulator.Simulation
                 ["{CURRENT_L3}"] = "0.0",
 
                 ["{GAS_M3}"] = "123.456",
-                ["{MONTHLY_PEAK}"] = "1.234"
+                ["{MONTHLY_PEAK}"] = "1.234",
+
+                ["{WATER_M3}"] = "123.456",
+                ["{HEAT_GJ}"] = "4.567",
+
             };
         }
     }

@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Simulation
 {
     /// <summary>

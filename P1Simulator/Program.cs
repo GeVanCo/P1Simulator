@@ -3,7 +3,6 @@ using P1Simulator.Serial;
 using P1Simulator.Simulation;
 using P1Simulator.Telegrams;
 using P1Simulator.ConsoleUI;
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace P1Simulator

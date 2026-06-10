@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Simulation
 {
     /// <summary>
@@ -24,6 +23,10 @@ namespace P1Simulator.Simulation
 
         // Optional gas value
         public double Gas { get; set; } = 123.456;
+
+        public double WaterM3 { get; set; } = 12.345;
+        public double HeatGj { get; set; } = 4.567;
+
 
         public Dictionary<string, string> GenerateValues()
         {
@@ -57,7 +60,16 @@ namespace P1Simulator.Simulation
                 ["{GAS_M3}"] = Gas.ToString("F3"),
 
                 // Capacity tariff
-                ["{MONTHLY_PEAK}"] = "3.456" // or a property you add later
+                ["{MONTHLY_PEAK}"] = "3.456", // or a property you add later
+
+                // Water
+                ["{WATER_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
+                ["{WATER_M3}"] = WaterM3.ToString("F3"),
+
+                // Heat
+                ["{HEAT_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
+                ["{HEAT_GJ}"] = HeatGj.ToString("F3"),
+
             };
         }
     }

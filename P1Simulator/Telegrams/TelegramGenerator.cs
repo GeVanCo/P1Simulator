@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 using P1Simulator.CRC;
 using P1Simulator.Simulation;
 

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Simulation
 {
     public class RandomProfile : ISimulationProfile
@@ -22,6 +20,9 @@ namespace P1Simulator.Simulation
             double importHigh = 2000 + _rnd.NextDouble() * 100;
 
             double gas = 100 + _rnd.NextDouble() * 10;
+
+            double water = 10 + _rnd.NextDouble() * 5;
+            double heat = 3 + _rnd.NextDouble() * 2;
 
             return new Dictionary<string, string>
             {
@@ -45,7 +46,10 @@ namespace P1Simulator.Simulation
                 ["{CURRENT_L3}"] = c3.ToString("F1"),
 
                 ["{GAS_M3}"] = gas.ToString("F3"),
-                ["{MONTHLY_PEAK}"] = (2 + _rnd.NextDouble() * 3).ToString("F3")
+                ["{MONTHLY_PEAK}"] = (2 + _rnd.NextDouble() * 3).ToString("F3"),
+
+                ["{WATER_M3}"] = water.ToString("F3"),
+                ["{HEAT_GJ}"] = heat.ToString("F3"),
             };
         }
     }

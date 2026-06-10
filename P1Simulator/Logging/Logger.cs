@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-
+﻿
 namespace P1Simulator.Logging
 {
     public class Logger

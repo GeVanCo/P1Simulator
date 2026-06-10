@@ -1,5 +1,4 @@
-﻿using System;
-using P1Simulator.Telegrams;
+﻿using P1Simulator.Telegrams;
 using P1Simulator.Simulation;
 
 namespace P1Simulator.ConsoleUI

@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Telegrams
 {
     /// <summary>
@@ -20,6 +19,9 @@ namespace P1Simulator.Telegrams
             Register("capacity", DsmrTemplates.CapacityTariff);
             Register("minimal", DsmrTemplates.Minimal);
             Register("FullDsmr", DsmrTemplates.FullDsmr);
+            Register("Water", DsmrTemplates.Water);
+            Register("Heat", DsmrTemplates.Heat);
+            Register("FullDsmrExtended", DsmrTemplates.FullDsmrExtended);
 
             // Future:
             // Register("water", DsmrTemplates.Water);
