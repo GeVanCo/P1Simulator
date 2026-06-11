@@ -22,11 +22,6 @@ namespace P1Simulator.Telegrams
             Register("water", DsmrTemplates.Water);
             Register("heat", DsmrTemplates.Heat);
             Register("fulldsmrextended", DsmrTemplates.FullDsmrExtended);
-
-            // Future:
-            // Register("water", DsmrTemplates.Water);
-            // Register("heat", DsmrTemplates.Heat);
-            // Register("full", DsmrTemplates.FullDsmr);
         }
 
         public void Register(string name, string template)
