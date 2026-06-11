@@ -1,12 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Simulation
 {
     public class RandomProfile : ISimulationProfile
     {
         public string Name => "random";
         private readonly Random _rnd = new Random();
+
+        public bool EnableElectricity => true;
+        public bool EnableGas => true;
+        public bool EnableWater => true;
+        public bool EnableHeat => true;
+        public bool EnableCapacityTariff => true;
 
         public Dictionary<string, string> GenerateValues()
         {

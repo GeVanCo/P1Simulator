@@ -1,12 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Simulation
 {
     public class SolarProfile : ISimulationProfile
     {
         public string Name => "solar";
 
+        public bool EnableElectricity => true;
+        public bool EnableGas => true;
+        public bool EnableWater => false;
+        public bool EnableHeat => false;
+        public bool EnableCapacityTariff => true;
         public Dictionary<string, string> GenerateValues()
         {
             double voltage = 230.0;

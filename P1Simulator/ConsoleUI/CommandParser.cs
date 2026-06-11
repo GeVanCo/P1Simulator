@@ -16,10 +16,10 @@ namespace P1Simulator.ConsoleUI
         private readonly Dictionary<string, string> _commandDescriptions =
             new(StringComparer.OrdinalIgnoreCase)
             {
-                { "template", "template <1phase|3phase|gas>    - Switch to a different telegram template" },
-                { "profile",  "profile <fixed|random|solar|ev> - Switch to a different meter profile" },
-                { "crc",      "crc <good|bad>                  - Set CRC mode" },
-                { "list",     "list <templates|profiles>       - List available templates or profiles" }
+                { "template", "template <name>               - Switch template (use 'list templates')" },
+                { "profile",  "profile  <name>               - Switch profile  (use 'list profiles')" },
+                { "crc",      "crc      <good|bad>           - Set CRC mode" },
+                { "list",     "list     <templates|profiles> - List templates or profiles" }
             };
 
         public string CurrentTemplate { get; private set; } = "3phase";

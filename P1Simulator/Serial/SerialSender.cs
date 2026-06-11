@@ -42,10 +42,15 @@ namespace P1Simulator.Serial
 
         public void Send(string data)
         {
-            if (_port == null || !_port.IsOpen)
-                throw new InvalidOperationException("Serial port not open.");
-
-            _port.Write(data);
+            try
+            {
+                _port.Write(data);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Serial] ERROR sending data: {ex.Message}");
+                _logger.Error($"Serial send error: {ex.Message}");
+            }
 
             _logger.WriteTelegram(data);
         }

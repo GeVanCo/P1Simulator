@@ -1,7 +1,11 @@
-﻿namespace P1Simulator.Telegrams
+﻿
+namespace P1Simulator.Telegrams
 {
     public static class DsmrTemplates
     {
+        // Note: All strings are verbatim string literals (using @) to preserve formatting and line breaks exactly as intended.
+        // This means we don't have to use \\, we can use \ instead.
+
         // --------------------------------------------------------------------
         // BASIC TEMPLATE (legacy)
         // --------------------------------------------------------------------
@@ -17,8 +21,8 @@
 1-0:2.8.2({EXPORT_HIGH}*kWh)
 1-0:1.7.0({POWER_IMPORT}*kW)
 1-0:2.7.0({POWER_EXPORT}*kW)
-1-0:32.7.0({VOLTAGE}*V)
-1-0:31.7.0({CURRENT}*A)
+1-0:32.7.0({VOLTAGE_L1}*V)
+1-0:31.7.0({CURRENT_L1}*A)
 !";
 
 
@@ -142,7 +146,7 @@
         // Water
         // --------------------------------------------------------------------
         public const string Water =
-@"/FLU5\\253769484_A
+@"/FLU5\253769484_A
 
 1-3:0.2.8(50)
 0-0:1.0.0({TIMESTAMP})
@@ -156,7 +160,7 @@
         // Heating (similar to water, but with different OBIS code)
         // --------------------------------------------------------------------
         public const string Heat =
-@"/FLU5\\253769484_A
+@"/FLU5\253769484_A
 
 1-3:0.2.8(50)
 0-0:1.0.0({TIMESTAMP})
@@ -170,7 +174,7 @@
         // Full DSMR with Electricity, Gas, Water, Heat, and Capacity Tariff
         // --------------------------------------------------------------------
         public const string FullDsmrExtended =
-@"/FLU5\\253769484_A
+@"/FLU5\253769484_A
 
 1-3:0.2.8(50)
 0-0:1.0.0({TIMESTAMP})

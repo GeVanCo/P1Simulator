@@ -11,6 +11,11 @@ namespace P1Simulator.Simulation
         /// Unique name of the profile (e.g. "fixed", "random", "solar", "ev").
         /// </summary>
         string Name { get; }
+        bool EnableElectricity { get; }
+        bool EnableGas { get; }
+        bool EnableWater { get; }
+        bool EnableHeat { get; }
+        bool EnableCapacityTariff { get; }
 
         /// <summary>
         /// Generates a dictionary of placeholder → value pairs.

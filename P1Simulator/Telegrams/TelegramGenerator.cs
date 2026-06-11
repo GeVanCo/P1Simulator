@@ -6,7 +6,7 @@ namespace P1Simulator.Telegrams
 {
     /// <summary>
     /// Generates DSMR telegrams by combining templates and simulation profiles.
-    /// Handles placeholder replacement and CRC-16/X25 calculation.
+    /// Handles placeholder replacement and DSMR CRC-16 calculation.
     /// </summary>
     public class TelegramGenerator
     {
@@ -44,7 +44,10 @@ namespace P1Simulator.Telegrams
             // 2) Apply placeholders to template
             string body = TemplateProcessor.ApplyPlaceholders(template, values);
 
-            // 3) Convert to bytes for CRC calculation
+            // 3) Apply profile flags (remove OBIS blocks)
+            body = ApplyProfileFlags(body, profile);
+
+            // 4) Convert to bytes for CRC calculation
             byte[] bytes = Encoding.ASCII.GetBytes(body);
 
             // CRC must include everything up to and including '!'
@@ -57,10 +60,47 @@ namespace P1Simulator.Telegrams
             if (ForceBadCrc)
                 crc ^= 0xFFFF; // flip bits to corrupt CRC
 
-            // 4) Append CRC and CRLF
+            // 5) Append CRC and CRLF
             string fullTelegram = body + crc.ToString("X4") + "\r\n";
 
             return fullTelegram;
+        }
+
+        private string ApplyProfileFlags(string body, ISimulationProfile profile)
+        {
+            if (!profile.EnableGas)
+            {
+                body = RemoveLinesContaining(body, "0-1:24.2.1");
+            }
+
+            if (!profile.EnableWater)
+            {
+                body = RemoveLinesContaining(body, "0-2:24.2.1");
+            }
+
+            if (!profile.EnableHeat)
+            {
+                body = RemoveLinesContaining(body, "0-3:24.2.1");
+            }
+
+            if (!profile.EnableCapacityTariff)
+            {
+                body = RemoveLinesContaining(body, "1-0:1.6.0");
+            }
+
+            if (!profile.EnableElectricity)
+            {
+                body = RemoveLinesContaining(body, "1-0:");
+            }
+
+            return body;
+        }
+
+        private string RemoveLinesContaining(string text, string pattern)
+        {
+            var lines = text.Split('\n');
+            var filtered = lines.Where(l => !l.Contains(pattern));
+            return string.Join("\n", filtered);
         }
     }
 }

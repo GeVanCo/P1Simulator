@@ -1,12 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-
+﻿
 namespace P1Simulator.Simulation
 {
     public class EVProfile : ISimulationProfile
     {
         public string Name => "ev";
 
+        public bool EnableElectricity => true;
+        public bool EnableGas => true;
+        public bool EnableWater => false;
+        public bool EnableHeat => false;
+        public bool EnableCapacityTariff => true;
         public Dictionary<string, string> GenerateValues()
         {
             double voltage = 230.0;
@@ -54,6 +57,11 @@ namespace P1Simulator.Simulation
                 // Capacity tariff
                 ["{MONTHLY_PEAK}"] = "5.000"
             };
+        }
+
+        Dictionary<string, string> ISimulationProfile.GenerateValues()
+        {
+            throw new NotImplementedException();
         }
     }
 }

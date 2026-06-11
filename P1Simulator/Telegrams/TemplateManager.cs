@@ -18,10 +18,10 @@ namespace P1Simulator.Telegrams
             Register("gas", DsmrTemplates.Gas);
             Register("capacity", DsmrTemplates.CapacityTariff);
             Register("minimal", DsmrTemplates.Minimal);
-            Register("FullDsmr", DsmrTemplates.FullDsmr);
-            Register("Water", DsmrTemplates.Water);
-            Register("Heat", DsmrTemplates.Heat);
-            Register("FullDsmrExtended", DsmrTemplates.FullDsmrExtended);
+            Register("fulldsmr", DsmrTemplates.FullDsmr);
+            Register("water", DsmrTemplates.Water);
+            Register("heat", DsmrTemplates.Heat);
+            Register("fulldsmrextended", DsmrTemplates.FullDsmrExtended);
 
             // Future:
             // Register("water", DsmrTemplates.Water);

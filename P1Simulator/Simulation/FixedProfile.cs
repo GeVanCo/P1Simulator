@@ -7,7 +7,14 @@ namespace P1Simulator.Simulation
     /// </summary>
     public class FixedProfile : ISimulationProfile
     {
+
         public string Name => "fixed";
+
+        public bool EnableElectricity => true;
+        public bool EnableGas => true;
+        public bool EnableWater => true;
+        public bool EnableHeat => true;
+        public bool EnableCapacityTariff => true;
 
         // Default values (you can change these at runtime later)
         public double Import { get; set; } = 1234.567;
@@ -32,9 +39,11 @@ namespace P1Simulator.Simulation
         {
             return new Dictionary<string, string>
             {
-                // Timestamps
+                // Timestamps for gas, water and heat
                 ["{TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
                 ["{GAS_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
+                ["{WATER_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
+                ["{HEAT_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
 
                 // Energy totals
                 ["{IMPORT_LOW}"] = Import.ToString("F3"),
@@ -63,11 +72,9 @@ namespace P1Simulator.Simulation
                 ["{MONTHLY_PEAK}"] = "3.456", // or a property you add later
 
                 // Water
-                ["{WATER_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
                 ["{WATER_M3}"] = WaterM3.ToString("F3"),
 
                 // Heat
-                ["{HEAT_TIMESTAMP}"] = DateTime.Now.ToString("yyMMddHHmmss"),
                 ["{HEAT_GJ}"] = HeatGj.ToString("F3"),
 
             };
