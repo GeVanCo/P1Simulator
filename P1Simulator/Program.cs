@@ -36,6 +36,8 @@ namespace P1Simulator
 
         private static readonly List<string> _history = new();
         private static int _historyIndex = -1;
+        private static UInt32 _totalBytesSent = 0;
+        private static UInt32 _lastTelegramBytes = 0;
 
         //============================================================================
 
@@ -149,7 +151,7 @@ namespace P1Simulator
         // ───────────────────────────────────────────────────────────────
         //  FIXED FOOTER (moved up one row)
         // ───────────────────────────────────────────────────────────────
-        static void DrawFooter(string portName, int baudRate)
+        static void DrawFooter(string portName, int baudRate, UInt32 lastTelegramBytes, UInt32 totalBytesSent)
         {
             int row = FooterRow - 1;
             if (row < 0) row = 0;
@@ -157,7 +159,7 @@ namespace P1Simulator
             Console.SetCursorPosition(0, row);
             Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
             Console.WriteLine(
-                $" Port: {portName} | Baudrate: {baudRate}"
+                $" Port: {portName} | Baudrate: {baudRate} | Last telegram bytes: {lastTelegramBytes} | Total bytes sent: {totalBytesSent}"
                     .PadRight(Console.WindowWidth - 1)
             );
         }
@@ -220,7 +222,7 @@ namespace P1Simulator
                 Console.Clear();
                 DrawFixedHeader();
                 DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-                DrawFooter(portName, sender.BaudRate);
+                DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
                 DrawCommandPrompt();
             };
 
@@ -229,7 +231,7 @@ namespace P1Simulator
 
             DrawFixedHeader();
             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-            DrawFooter(portName, sender.BaudRate);
+            DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
             DrawCommandPrompt();   // NEW
 
             try
@@ -258,7 +260,7 @@ namespace P1Simulator
                             Console.Clear();
                             DrawFixedHeader();
                             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-                            DrawFooter(portName, sender.BaudRate);
+                            DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
                             DrawCommandPrompt();
                             continue;
                         }
@@ -270,7 +272,7 @@ namespace P1Simulator
                             Console.Clear();
                             DrawFixedHeader();
                             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-                            DrawFooter(portName, sender.BaudRate);
+                            DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
                             DrawCommandPrompt();
                             continue;
                         }
@@ -351,7 +353,7 @@ namespace P1Simulator
                         commands.Handle(buffer);
 
                         DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-                        DrawFooter(portName, sender.BaudRate);
+                        DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
 
                         Console.SetCursorPosition(10, FooterRow + 1);
                         Console.Write(new string(' ', Console.WindowWidth - 10));
@@ -376,6 +378,10 @@ namespace P1Simulator
                     Console.WriteLine(telegram);
 
                     sender.Send(telegram);
+                    _lastTelegramBytes = (UInt32)telegram.Length;
+                    _totalBytesSent += _lastTelegramBytes;
+
+                    DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
 
                     await Task.Delay(1000, _cts.Token);
                 }
