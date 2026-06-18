@@ -17,11 +17,28 @@ namespace P1Simulator.Telegrams
         /// When true, the CRC is intentionally corrupted for testing.
         /// </summary>
         public bool ForceBadCrc { get; set; } = false;
+        public string CurrentTemplate { get; private set; } = "3phase";
+        public string CurrentProfile { get; private set; } = "random";
+
 
         public TelegramGenerator(TemplateManager templates, ProfileManager profiles)
         {
             _templates = templates;
             _profiles = profiles;
+        }
+        public void SetTemplate(string name)
+        {
+            CurrentTemplate = name;
+        }
+
+        public void SetProfile(string name)
+        {
+            CurrentProfile = name;
+        }
+
+        public string Generate()
+        {
+            return Generate(CurrentTemplate, CurrentProfile);
         }
 
         /// <summary>

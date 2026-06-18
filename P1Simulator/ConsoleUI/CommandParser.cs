@@ -1,5 +1,6 @@
 ﻿using P1Simulator.Telegrams;
 using P1Simulator.Simulation;
+using P1Simulator.Settings;
 
 namespace P1Simulator.ConsoleUI
 {
@@ -11,6 +12,7 @@ namespace P1Simulator.ConsoleUI
         private readonly TemplateManager _templates;
         private readonly ProfileManager _profiles;
         private readonly TelegramGenerator _generator;
+        private readonly SimulatorSettings _settings;
 
         // ⭐ NEW: Dictionary of commands → description
         private readonly Dictionary<string, string> _commandDescriptions =
@@ -19,6 +21,7 @@ namespace P1Simulator.ConsoleUI
                 { "template", "template <name>               - Switch template (use 'list templates')" },
                 { "profile",  "profile  <name>               - Switch profile  (use 'list profiles')" },
                 { "crc",      "crc      <good|bad>           - Set CRC mode" },
+                { "speed",    "speed    <ms>                 - Set telegram interval in milliseconds" },
                 { "list",     "list     <templates|profiles> - List templates or profiles" }
             };
 
@@ -30,15 +33,27 @@ namespace P1Simulator.ConsoleUI
         public CommandParser(
             TemplateManager templates,
             ProfileManager profiles,
-            TelegramGenerator generator)
+            TelegramGenerator generator,
+            SimulatorSettings settings)
         {
             _templates = templates;
             _profiles = profiles;
             _generator = generator;
+            _settings = settings;
+
+            // ⭐ Apply persisted settings
+            if (_templates.Get(settings.Template) != null)
+                CurrentTemplate = settings.Template;
+
+            if (_profiles.Get(settings.Profile) != null)
+                CurrentProfile = settings.Profile;
+
+            _generator.SetTemplate(CurrentTemplate);
+            _generator.SetProfile(CurrentProfile);
         }
 
         /// <summary>
-        /// ⭐ NEW: Expose commands for dynamic help screen.
+        /// ⭐ Expose commands for dynamic help screen.
         /// </summary>
         public IReadOnlyDictionary<string, string> GetCommands()
         {
@@ -88,6 +103,15 @@ namespace P1Simulator.ConsoleUI
                     SetCrcMode(parts[1]);
                     break;
 
+                case "speed":
+                    if (parts.Length < 2 || !int.TryParse(parts[1], out int ms) || ms < 100)
+                    {
+                        Console.WriteLine("Usage: speed <milliseconds> (min 100)");
+                        return;
+                    }
+                    SetSpeed(ms);
+                    break;
+
                 case "list":
                     if (parts.Length < 2)
                     {
@@ -112,6 +136,12 @@ namespace P1Simulator.ConsoleUI
             }
 
             CurrentTemplate = name;
+            _generator.SetTemplate(name);
+
+            // ⭐ Persist
+            _settings.Template = name;
+            SettingsManager.Save(_settings);
+
             Console.WriteLine($"Template set to: {name}");
         }
 
@@ -124,6 +154,12 @@ namespace P1Simulator.ConsoleUI
             }
 
             CurrentProfile = name;
+            _generator.SetProfile(name);
+
+            // ⭐ Persist
+            _settings.Profile = name;
+            SettingsManager.Save(_settings);
+
             Console.WriteLine($"Profile set to: {name}");
         }
 
@@ -145,6 +181,14 @@ namespace P1Simulator.ConsoleUI
                     Console.WriteLine("Usage: crc <good|bad>");
                     break;
             }
+        }
+
+        private void SetSpeed(int ms)
+        {
+            _settings.SpeedMs = ms;
+            SettingsManager.Save(_settings);
+
+            Console.WriteLine($"Telegram speed set to {ms} ms.");
         }
 
         private void ListItems(string what)

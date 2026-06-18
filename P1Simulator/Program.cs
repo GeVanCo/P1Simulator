@@ -3,6 +3,8 @@ using P1Simulator.Serial;
 using P1Simulator.Simulation;
 using P1Simulator.Telegrams;
 using P1Simulator.ConsoleUI;
+using P1Simulator.Settings;
+
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 
@@ -36,7 +38,7 @@ namespace P1Simulator
 
         static int FooterRow => Console.WindowHeight - 3;
 
-        private static readonly List<string> _history = new();
+        private static readonly List<string> _history = [];
         private static int _historyIndex = -1;
 
         private static UInt32 _totalBytesSent = 0;
@@ -53,13 +55,19 @@ namespace P1Simulator
         private static volatile bool _requestRestart = false;
         private static volatile bool _requestQuit = false;
 
+        // Persisted settings
+        private static SimulatorSettings _settings = new();
+
         //============================================================================
         // MAIN ENTRY POINT
         //============================================================================
 
-        static async Task Main(string[] args)
+        //static async Task Main(string[] args)
+        static async Task Main()
         {
             Console.Title = "P1 Dutch Smart Meter Reader Simulator";
+
+            _settings = SettingsManager.Load();
 
             while (true)
             {
@@ -123,6 +131,7 @@ namespace P1Simulator
             Console.WriteLine($" Template     : {template}");
             Console.WriteLine($" Profile      : {profile}");
             Console.WriteLine($" CRC Mode     : {(badCrc ? "BAD (forced)" : "GOOD")}");
+            Console.WriteLine($" Speed        : {_settings.SpeedMs} ms");
             Console.WriteLine();
             Console.WriteLine($" Press 'q' to stop or Ctrl+C to interrupt.");
             Console.WriteLine();
@@ -159,7 +168,8 @@ namespace P1Simulator
                 $"Telegrams sent: {_telegramCount:D5}   " +
                 $"Template: {template}   " +
                 $"Profile: {profile}   " +
-                $"CRC: {(badCrc ? "BAD" : "GOOD")}   "
+                $"CRC: {(badCrc ? "BAD" : "GOOD")}   " +
+                $"Speed: {_settings.SpeedMs}ms   "
             );
             Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
         }
@@ -346,7 +356,8 @@ namespace P1Simulator
             var templates = new TemplateManager();
             var profiles = new ProfileManager();
             var generator = new TelegramGenerator(templates, profiles);
-            var commands = new CommandParser(templates, profiles, generator);
+
+            var commands = new CommandParser(templates, profiles, generator, _settings);
 
             string? portName = ComPortDetectorHybrid.AutoDetect();
             if (portName == null)
@@ -380,15 +391,13 @@ namespace P1Simulator
             DrawCommandPrompt();
             RedrawCommandLine();
 
-            // telegram interval (change here: 1000 = 1s, 3000 = 3s, ...)
-            int telegramIntervalMs = 1000;
+            int telegramIntervalMs = _settings.SpeedMs;
             DateTime nextTelegramTime = DateTime.UtcNow;
 
             try
             {
                 while (!_cts.Token.IsCancellationRequested)
                 {
-                    // POPUP FLAGS
                     if (_requestQuit)
                     {
                         _requestQuit = false;
@@ -427,13 +436,13 @@ namespace P1Simulator
                         RedrawCommandLine();
                     }
 
-                    // INPUT (non-blocking, every tick)
                     if (_inputQueue.TryDequeue(out var key))
                     {
                         ProcessKey(key, commands);
                     }
 
-                    // TELEGRAM SCHEDULING (independent of tick rate)
+                    telegramIntervalMs = _settings.SpeedMs;
+
                     if (DateTime.UtcNow >= nextTelegramTime)
                     {
                         _telegramCount++;
@@ -441,7 +450,7 @@ namespace P1Simulator
 
                         ClearTelegramArea();
 
-                        string telegram = generator.Generate(commands.CurrentTemplate, commands.CurrentProfile);
+                        string telegram = generator.Generate();
 
                         Console.SetCursorPosition(0, 7);
                         Console.WriteLine("Sending telegram:");
@@ -458,7 +467,6 @@ namespace P1Simulator
                         nextTelegramTime = DateTime.UtcNow.AddMilliseconds(telegramIntervalMs);
                     }
 
-                    // short tick to keep UI + input responsive
                     await Task.Delay(50, _cts.Token);
                 }
             }
@@ -484,8 +492,8 @@ namespace P1Simulator
         {
             Console.Clear();
 
-            List<string> lines = new()
-            {
+            List<string> lines =      // instead of new() {...}, we can do [...] instead.
+            [
                 "",
                 "Version 1.0",
                 "By Geert Vancompernolle (c. 2026 - 2026)",
@@ -494,7 +502,7 @@ namespace P1Simulator
                 "for testing UART serial receivers.",
                 "",
                 "Press any key to return..."
-            };
+            ];
 
             DrawUnicodePopup("P1 Simulator - About", lines);
         }
@@ -508,12 +516,12 @@ namespace P1Simulator
 
             var cmdList = commands.GetCommands();
 
-            List<string> lines = new()
-            {
+            List<string> lines = 
+            [
                 "",
                 "Available Commands:",
                 ""
-            };
+            ];
 
             foreach (var entry in cmdList)
                 lines.Add("  " + entry.Value);
@@ -538,10 +546,10 @@ namespace P1Simulator
         {
             Console.Clear();
 
-            List<string> lines = new()
-            {
+            List<string> lines =
+            [
                 ""
-            };
+            ];
 
             foreach (var item in items)
                 lines.Add("  " + item);
