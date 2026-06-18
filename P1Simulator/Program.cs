@@ -3,6 +3,7 @@ using P1Simulator.Serial;
 using P1Simulator.Simulation;
 using P1Simulator.Telegrams;
 using P1Simulator.ConsoleUI;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 
 namespace P1Simulator
@@ -27,18 +28,33 @@ namespace P1Simulator
         }
 
         //============================================================================
+        // GLOBAL STATE
+        //============================================================================
 
         private static CancellationTokenSource _cts = new();
         private static int _telegramCount = 0;
 
-        // ⭐ Footer moved up one row (Option 1)
         static int FooterRow => Console.WindowHeight - 3;
 
         private static readonly List<string> _history = new();
         private static int _historyIndex = -1;
+
         private static UInt32 _totalBytesSent = 0;
         private static UInt32 _lastTelegramBytes = 0;
 
+        // Key listener / input
+        private static bool _keyListenerRunning = false;
+        private static readonly ConcurrentQueue<ConsoleKeyInfo> _inputQueue = new();
+        private static string _cmdBuffer = "";
+
+        // Popup / control flags
+        private static volatile bool _requestAbout = false;
+        private static volatile bool _requestHelp = false;
+        private static volatile bool _requestRestart = false;
+        private static volatile bool _requestQuit = false;
+
+        //============================================================================
+        // MAIN ENTRY POINT
         //============================================================================
 
         static async Task Main(string[] args)
@@ -128,7 +144,7 @@ namespace P1Simulator
         {
             Console.SetCursorPosition(0, 0);
             Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
-            Console.WriteLine("           'q' -> Stop, Ctrl+C -> interrupt, 'a' -> About, 'h' -> help");
+            Console.WriteLine("           'q' -> Stop, Ctrl+C -> interrupt, 'a' -> About, 'h' -> help, 'r' -> restart");
             Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
         }
 
@@ -149,7 +165,7 @@ namespace P1Simulator
         }
 
         // ───────────────────────────────────────────────────────────────
-        //  FIXED FOOTER (moved up one row)
+        //  FIXED FOOTER
         // ───────────────────────────────────────────────────────────────
         static void DrawFooter(string portName, int baudRate, UInt32 lastTelegramBytes, UInt32 totalBytesSent)
         {
@@ -165,7 +181,7 @@ namespace P1Simulator
         }
 
         // ───────────────────────────────────────────────────────────────
-        //  COMMAND PROMPT (moved up one row)
+        //  COMMAND PROMPT
         // ───────────────────────────────────────────────────────────────
         static void DrawCommandPrompt()
         {
@@ -175,9 +191,24 @@ namespace P1Simulator
                 row = Console.WindowHeight - 2;
 
             Console.SetCursorPosition(0, row);
-            Console.Write(" Command: ".PadRight(Console.WindowWidth - 1));
+            Console.Write(" Command: ");
         }
 
+        private static void RedrawCommandLine()
+        {
+            int row = FooterRow + 1;
+            if (row >= Console.WindowHeight)
+                row = Console.WindowHeight - 2;
+
+            Console.SetCursorPosition(0, row);
+            Console.Write(new string(' ', Console.WindowWidth - 1));
+            Console.SetCursorPosition(0, row);
+            Console.Write(" Command: " + _cmdBuffer);
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  CTRL+C HANDLER
+        // ───────────────────────────────────────────────────────────────
         private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
         {
             Console.WriteLine("Ctrl+C detected. Stopping...");
@@ -186,15 +217,130 @@ namespace P1Simulator
         }
 
         // ───────────────────────────────────────────────────────────────
-        //  MAIN SIMULATOR LOOP
+        //  GLOBAL KEY LISTENER (input collector)
+        // ───────────────────────────────────────────────────────────────
+        private static void KeyListener()
+        {
+            while (true)
+            {
+                if (Console.KeyAvailable)
+                {
+                    var key = Console.ReadKey(intercept: true);
+                    _inputQueue.Enqueue(key);
+                }
+
+                Thread.Sleep(5);
+            }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  INPUT PROCESSING (non-blocking)
+        // ───────────────────────────────────────────────────────────────
+        private static void ProcessKey(ConsoleKeyInfo key, CommandParser commands)
+        {
+            bool typing = _cmdBuffer.Length > 0;
+
+            // HOTKEYS ONLY WHEN NOT TYPING
+            if (!typing)
+            {
+                switch (key.Key)
+                {
+                    case ConsoleKey.Q:
+                        _requestQuit = true;
+                        return;
+
+                    case ConsoleKey.A:
+                        _requestAbout = true;
+                        return;
+
+                    case ConsoleKey.H:
+                        _requestHelp = true;
+                        return;
+
+                    case ConsoleKey.R:
+                        _requestRestart = true;
+                        return;
+                }
+            }
+
+            // COMMAND INPUT
+            switch (key.Key)
+            {
+                case ConsoleKey.Enter:
+                    HandleCommand(commands);
+                    return;
+
+                case ConsoleKey.Backspace:
+                    if (_cmdBuffer.Length > 0)
+                        _cmdBuffer = _cmdBuffer[..^1];
+                    break;
+
+                case ConsoleKey.UpArrow:
+                    NavigateHistory(-1);
+                    break;
+
+                case ConsoleKey.DownArrow:
+                    NavigateHistory(+1);
+                    break;
+
+                default:
+                    if (!char.IsControl(key.KeyChar))
+                        _cmdBuffer += key.KeyChar;
+                    break;
+            }
+
+            RedrawCommandLine();
+        }
+
+        private static void HandleCommand(CommandParser commands)
+        {
+            string cmd = _cmdBuffer.Trim();
+
+            if (!string.IsNullOrEmpty(cmd))
+            {
+                _history.Add(cmd);
+                _historyIndex = _history.Count;
+                commands.Handle(cmd);
+            }
+
+            _cmdBuffer = "";
+            RedrawCommandLine();
+        }
+
+        private static void NavigateHistory(int direction)
+        {
+            if (_history.Count == 0)
+                return;
+
+            _historyIndex = Math.Clamp(_historyIndex + direction, 0, _history.Count);
+
+            if (_historyIndex == _history.Count)
+                _cmdBuffer = "";
+            else
+                _cmdBuffer = _history[_historyIndex];
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  MAIN SIMULATOR LOOP (short ticks + timed telegrams)
         // ───────────────────────────────────────────────────────────────
         private static async Task RunSimulator()
         {
             MoveConsoleTo(100, 100);
             _cts = new CancellationTokenSource();
             _telegramCount = 0;
+            _historyIndex = -1;
+            _totalBytesSent = 0;
+            _lastTelegramBytes = 0;
+            _cmdBuffer = "";
+            while (_inputQueue.TryDequeue(out _)) { } // clear queue
 
             Console.CancelKeyPress += OnCancelKeyPress;
+
+            if (!_keyListenerRunning)
+            {
+                _keyListenerRunning = true;
+                _ = Task.Run(() => KeyListener());
+            }
 
             var logger = new Logger();
             var templates = new TemplateManager();
@@ -202,7 +348,6 @@ namespace P1Simulator
             var generator = new TelegramGenerator(templates, profiles);
             var commands = new CommandParser(templates, profiles, generator);
 
-            // --- NEW: Auto-detect COM port ---
             string? portName = ComPortDetectorHybrid.AutoDetect();
             if (portName == null)
             {
@@ -212,7 +357,6 @@ namespace P1Simulator
 
             logger.Info($"Using COM port: {portName}");
 
-            // --- NEW: SerialSender with logger ---
             var sender = new SerialSender(logger, portName);
             sender.Open();
 
@@ -224,166 +368,98 @@ namespace P1Simulator
                 DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
                 DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
                 DrawCommandPrompt();
+                RedrawCommandLine();
             };
 
-            // Splash screen
             ShowSplash(portName, commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc, sender.BaudRate);
 
+            Console.Clear();
             DrawFixedHeader();
             DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
             DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
-            DrawCommandPrompt();   // NEW
+            DrawCommandPrompt();
+            RedrawCommandLine();
+
+            // telegram interval (change here: 1000 = 1s, 3000 = 3s, ...)
+            int telegramIntervalMs = 1000;
+            DateTime nextTelegramTime = DateTime.UtcNow;
 
             try
             {
                 while (!_cts.Token.IsCancellationRequested)
                 {
-                    // ---------------------------------------------------------
-                    // HOTKEYS (q, a) — single key, no Enter required
-                    // ---------------------------------------------------------
-                    if (Console.KeyAvailable)
+                    // POPUP FLAGS
+                    if (_requestQuit)
                     {
-                        var key = Console.ReadKey(intercept: true);
-
-                        // Quit
-                        if (key.Key == ConsoleKey.Q)
-                        {
-                            Console.WriteLine("Stopping simulator...");
-                            _cts.Cancel();
-                            break;
-                        }
-
-                        // About popup
-                        if (key.Key == ConsoleKey.A)
-                        {
-                            ShowAboutPopup();
-                            Console.Clear();
-                            DrawFixedHeader();
-                            DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-                            DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
-                            DrawCommandPrompt();
-                            continue;
-                        }
-
-                        // Help popup
-                        if (key.Key == ConsoleKey.H)
-                        {
-                            ShowHelpPopup(commands);
-                            Console.Clear();
-                            DrawFixedHeader();
-                            DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-                            DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
-                            DrawCommandPrompt();
-                            continue;
-                        }
-
-                        // -----------------------------------------------------
-                        // COMMAND INPUT (footer line + history)
-                        // -----------------------------------------------------
-                        string buffer = key.KeyChar.ToString();
-                        _historyIndex = _history.Count;
-
-                        Console.SetCursorPosition(10, FooterRow + 1);
-                        Console.Write(new string(' ', Console.WindowWidth - 10));
-                        Console.SetCursorPosition(10, FooterRow + 1);
-                        Console.Write(buffer);
-
-                        while (true)
-                        {
-                            var k = Console.ReadKey(intercept: true);
-
-                            if (k.Key == ConsoleKey.Enter)
-                                break;
-
-                            if (k.Key == ConsoleKey.Backspace)
-                            {
-                                if (buffer.Length > 0)
-                                {
-                                    buffer = buffer[..^1];
-                                    Console.SetCursorPosition(10, FooterRow + 1);
-                                    Console.Write(new string(' ', Console.WindowWidth - 10));
-                                    Console.SetCursorPosition(10, FooterRow + 1);
-                                    Console.Write(buffer);
-                                }
-                                continue;
-                            }
-
-                            if (k.Key == ConsoleKey.UpArrow)
-                            {
-                                if (_history.Count > 0 && _historyIndex > 0)
-                                {
-                                    _historyIndex--;
-                                    buffer = _history[_historyIndex];
-                                }
-
-                                Console.SetCursorPosition(10, FooterRow + 1);
-                                Console.Write(new string(' ', Console.WindowWidth - 10));
-                                Console.SetCursorPosition(10, FooterRow + 1);
-                                Console.Write(buffer);
-                                continue;
-                            }
-
-                            if (k.Key == ConsoleKey.DownArrow)
-                            {
-                                if (_historyIndex < _history.Count - 1)
-                                {
-                                    _historyIndex++;
-                                    buffer = _history[_historyIndex];
-                                }
-                                else
-                                {
-                                    _historyIndex = _history.Count;
-                                    buffer = "";
-                                }
-
-                                Console.SetCursorPosition(10, FooterRow + 1);
-                                Console.Write(new string(' ', Console.WindowWidth - 10));
-                                Console.SetCursorPosition(10, FooterRow + 1);
-                                Console.Write(buffer);
-                                continue;
-                            }
-
-                            buffer += k.KeyChar;
-                            Console.Write(k.KeyChar);
-                        }
-
-                        if (!string.IsNullOrWhiteSpace(buffer))
-                            _history.Add(buffer);
-
-                        commands.Handle(buffer);
-
-                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
-                        DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
-
-                        Console.SetCursorPosition(10, FooterRow + 1);
-                        Console.Write(new string(' ', Console.WindowWidth - 10));
-                        Console.SetCursorPosition(10, FooterRow + 1);
-
-                        continue;
+                        _requestQuit = false;
+                        _cts.Cancel();
+                        break;
                     }
 
-                    // ---------------------------------------------------------
-                    // NORMAL TELEGRAM LOOP
-                    // ---------------------------------------------------------
-                    _telegramCount++;
-                    DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                    if (_requestRestart)
+                    {
+                        _requestRestart = false;
+                        _cts.Cancel();
+                        break;
+                    }
 
-                    ClearTelegramArea();
+                    if (_requestAbout)
+                    {
+                        _requestAbout = false;
+                        ShowAboutPopup();
+                        Console.Clear();
+                        DrawFixedHeader();
+                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                        DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
+                        DrawCommandPrompt();
+                        RedrawCommandLine();
+                    }
 
-                    string telegram = generator.Generate(commands.CurrentTemplate, commands.CurrentProfile);
+                    if (_requestHelp)
+                    {
+                        _requestHelp = false;
+                        ShowHelpPopup(commands);
+                        Console.Clear();
+                        DrawFixedHeader();
+                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                        DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
+                        DrawCommandPrompt();
+                        RedrawCommandLine();
+                    }
 
-                    Console.SetCursorPosition(0, 7);
-                    Console.WriteLine("Sending telegram:");
-                    Console.WriteLine();
-                    Console.WriteLine(telegram);
+                    // INPUT (non-blocking, every tick)
+                    if (_inputQueue.TryDequeue(out var key))
+                    {
+                        ProcessKey(key, commands);
+                    }
 
-                    sender.Send(telegram);
-                    _lastTelegramBytes = (UInt32)telegram.Length;
-                    _totalBytesSent += _lastTelegramBytes;
+                    // TELEGRAM SCHEDULING (independent of tick rate)
+                    if (DateTime.UtcNow >= nextTelegramTime)
+                    {
+                        _telegramCount++;
+                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
 
-                    DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
+                        ClearTelegramArea();
 
-                    await Task.Delay(1000, _cts.Token);
+                        string telegram = generator.Generate(commands.CurrentTemplate, commands.CurrentProfile);
+
+                        Console.SetCursorPosition(0, 7);
+                        Console.WriteLine("Sending telegram:");
+                        Console.WriteLine();
+                        Console.WriteLine(telegram);
+
+                        sender.Send(telegram);
+                        _lastTelegramBytes = (UInt32)telegram.Length;
+                        _totalBytesSent += _lastTelegramBytes;
+
+                        DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
+                        RedrawCommandLine();
+
+                        nextTelegramTime = DateTime.UtcNow.AddMilliseconds(telegramIntervalMs);
+                    }
+
+                    // short tick to keep UI + input responsive
+                    await Task.Delay(50, _cts.Token);
                 }
             }
             catch (TaskCanceledException)
@@ -401,29 +477,16 @@ namespace P1Simulator
             }
         }
 
-        //============================================================================
-
-        static void MoveConsoleTo(int x, int y)
-        {
-            IntPtr handle = GetConsoleWindow();
-            if (handle == IntPtr.Zero)
-                return;
-
-            GetWindowRect(handle, out RECT rect);
-
-            int width = rect.Right - rect.Left;
-            int height = rect.Bottom - rect.Top;
-
-            MoveWindow(handle, x, y, width, height, true);
-        }
-
+        // ───────────────────────────────────────────────────────────────
+        //  ABOUT POPUP
+        // ───────────────────────────────────────────────────────────────
         static void ShowAboutPopup()
         {
             Console.Clear();
 
             List<string> lines = new()
             {
-                "P1 Simulator",
+                "",
                 "Version 1.0",
                 "By Geert Vancompernolle (c. 2026 - 2026)",
                 "",
@@ -433,9 +496,12 @@ namespace P1Simulator
                 "Press any key to return..."
             };
 
-            DrawUnicodePopup("P1 Simulator - Help", lines);
+            DrawUnicodePopup("P1 Simulator - About", lines);
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  HELP POPUP (COMMAND-AWARE)
+        // ───────────────────────────────────────────────────────────────
         static void ShowHelpPopup(CommandParser commands)
         {
             Console.Clear();
@@ -443,14 +509,12 @@ namespace P1Simulator
             var cmdList = commands.GetCommands();
 
             List<string> lines = new()
-    {
-        "P1 Simulator - Help",
-        "",
-        "Available Commands:",
-        ""
-    };
+            {
+                "",
+                "Available Commands:",
+                ""
+            };
 
-            // Dynamically list commands with descriptions
             foreach (var entry in cmdList)
                 lines.Add("  " + entry.Value);
 
@@ -460,21 +524,24 @@ namespace P1Simulator
             lines.Add("  a   - About screen");
             lines.Add("  h   - Help screen");
             lines.Add("  q   - Quit simulator");
+            lines.Add("  r   - Restart simulator");
             lines.Add("");
             lines.Add("Press any key to return...");
 
             DrawUnicodePopup("P1 Simulator - Help", lines);
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  LIST POPUP
+        // ───────────────────────────────────────────────────────────────
         static void ShowListPopup(string title, IEnumerable<string> items)
         {
             Console.Clear();
 
             List<string> lines = new()
-    {
-        title,
-        ""
-    };
+            {
+                ""
+            };
 
             foreach (var item in items)
                 lines.Add("  " + item);
@@ -482,9 +549,12 @@ namespace P1Simulator
             lines.Add("");
             lines.Add("Press any key to return...");
 
-            DrawUnicodePopup("P1 Simulator - Help", lines);
+            DrawUnicodePopup(title, lines);
         }
 
+        // ───────────────────────────────────────────────────────────────
+        //  UNICODE POPUP RENDERER
+        // ───────────────────────────────────────────────────────────────
         static void DrawUnicodePopup(string title, List<string> lines)
         {
             Console.Clear();
@@ -499,72 +569,30 @@ namespace P1Simulator
             int left = (Console.WindowWidth - boxWidth) / 2;
             int top = (Console.WindowHeight - boxHeight) / 2;
 
-            // Top border
             Console.SetCursorPosition(left, top);
             Console.WriteLine("┌" + new string('─', boxWidth - 2) + "┐");
 
-            // Title
             Console.SetCursorPosition(left, top + 1);
             Console.WriteLine("│ " + title.PadRight(boxWidth - 4) + " │");
 
-            // Separator
             Console.SetCursorPosition(left, top + 2);
             Console.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
 
-            // Content
             for (int i = 0; i < lines.Count; i++)
             {
                 Console.SetCursorPosition(left, top + 3 + i);
                 Console.WriteLine("│ " + lines[i].PadRight(boxWidth - 4) + " │");
             }
 
-            // Bottom border
             Console.SetCursorPosition(left, top + boxHeight - 1);
             Console.WriteLine("└" + new string('─', boxWidth - 2) + "┘");
 
             Console.ReadKey(true);
         }
 
-        static void DrawRoundedPopup(string title, List<string> lines)
-        {
-            Console.Clear();
-
-            int boxWidth = Math.Max(
-                Math.Max(title.Length, lines.Max(l => l.Length)) + 4,
-                30
-            );
-
-            int boxHeight = lines.Count + 4;
-
-            int left = (Console.WindowWidth - boxWidth) / 2;
-            int top = (Console.WindowHeight - boxHeight) / 2;
-
-            // Top border (rounded)
-            Console.SetCursorPosition(left, top);
-            Console.WriteLine("╭" + new string('─', boxWidth - 2) + "╮");
-
-            // Title
-            Console.SetCursorPosition(left, top + 1);
-            Console.WriteLine("│ " + title.PadRight(boxWidth - 4) + " │");
-
-            // Separator
-            Console.SetCursorPosition(left, top + 2);
-            Console.WriteLine("├" + new string('─', boxWidth - 2) + "┤");
-
-            // Content
-            for (int i = 0; i < lines.Count; i++)
-            {
-                Console.SetCursorPosition(left, top + 3 + i);
-                Console.WriteLine("│ " + lines[i].PadRight(boxWidth - 4) + " │");
-            }
-
-            // Bottom border (rounded)
-            Console.SetCursorPosition(left, top + boxHeight - 1);
-            Console.WriteLine("╰" + new string('─', boxWidth - 2) + "╯");
-
-            Console.ReadKey(true);
-        }
-
+        // ───────────────────────────────────────────────────────────────
+        //  CLEAR TELEGRAM AREA
+        // ───────────────────────────────────────────────────────────────
         static void ClearTelegramArea()
         {
             for (int row = 7; row < FooterRow - 2; row++)
@@ -572,6 +600,23 @@ namespace P1Simulator
                 Console.SetCursorPosition(0, row);
                 Console.Write(new string(' ', Console.WindowWidth - 1));
             }
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        //  MOVE CONSOLE WINDOW
+        // ───────────────────────────────────────────────────────────────
+        static void MoveConsoleTo(int x, int y)
+        {
+            IntPtr handle = GetConsoleWindow();
+            if (handle == IntPtr.Zero)
+                return;
+
+            GetWindowRect(handle, out RECT rect);
+
+            int width = rect.Right - rect.Left;
+            int height = rect.Bottom - rect.Top;
+
+            MoveWindow(handle, x, y, width, height, true);
         }
     }
 }
