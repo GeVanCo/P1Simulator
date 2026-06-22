@@ -1,12 +1,12 @@
-﻿using P1Simulator.Logging;
+﻿using P1Simulator.ConsoleUI;
+using P1Simulator.Logging;
 using P1Simulator.Serial;
+using P1Simulator.Settings;
 using P1Simulator.Simulation;
 using P1Simulator.Telegrams;
-using P1Simulator.ConsoleUI;
-using P1Simulator.Settings;
-
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace P1Simulator
 {
@@ -58,6 +58,15 @@ namespace P1Simulator
         // Persisted settings
         private static SimulatorSettings _settings = new();
 
+        // Dynamic settings reload (watcher)
+        private static FileSystemWatcher? _settingsWatcher;
+        private static DateTime _speedChangedAt = DateTime.MinValue;
+
+        private static int lastSpeed = -1;
+        
+        private static DateTime _lastClockUpdate = DateTime.MinValue;
+
+
         //============================================================================
         // MAIN ENTRY POINT
         //============================================================================
@@ -68,6 +77,11 @@ namespace P1Simulator
             Console.Title = "P1 Dutch Smart Meter Reader Simulator";
 
             _settings = SettingsManager.Load();
+
+            _settingsWatcher = new FileSystemWatcher(".", "settings.json");
+            _settingsWatcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size;
+            _settingsWatcher.Changed += OnSettingsFileChanged;
+            _settingsWatcher.EnableRaisingEvents = true;
 
             while (true)
             {
@@ -152,9 +166,9 @@ namespace P1Simulator
         static void DrawFixedHeader()
         {
             Console.SetCursorPosition(0, 0);
-            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
+            Console.WriteLine("───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────");
             Console.WriteLine("           'q' -> Stop, Ctrl+C -> interrupt, 'a' -> About, 'h' -> help, 'r' -> restart");
-            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
+            Console.WriteLine("───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────");
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -163,15 +177,35 @@ namespace P1Simulator
         static void DrawStatusBar(string template, string profile, bool badCrc)
         {
             Console.SetCursorPosition(0, 3);
-            Console.WriteLine(
-                $"   Time: {DateTime.Now:HH:mm:ss}   " +
-                $"Telegrams sent: {_telegramCount:D5}   " +
-                $"Template: {template}   " +
-                $"Profile: {profile}   " +
-                $"CRC: {(badCrc ? "BAD" : "GOOD")}   " +
-                $"Speed: {_settings.SpeedMs}ms   "
-            );
-            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
+
+            // Build the line in segments so we can color the speed part
+            Console.Write("   Time: ");
+            Console.Write(DateTime.Now.ToString("HH:mm:ss"));
+            Console.Write("   Telegrams sent: ");
+            Console.Write(_telegramCount.ToString("D5"));
+            Console.Write("   Template: ");
+            Console.Write(template);
+            Console.Write("   Profile: ");
+            Console.Write(profile);
+            Console.Write("   CRC: ");
+            Console.Write(badCrc ? "BAD" : "GOOD");
+            Console.Write("   Speed: ");
+
+            // ⭐ Color flash for speed
+            if ((DateTime.Now - _speedChangedAt).TotalMilliseconds < 800)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write(_settings.SpeedMs + "ms");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.Write(_settings.SpeedMs + "ms");
+            }
+
+            Console.Write("   ");
+            Console.WriteLine();
+            Console.WriteLine("───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────");
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -183,7 +217,7 @@ namespace P1Simulator
             if (row < 0) row = 0;
 
             Console.SetCursorPosition(0, row);
-            Console.WriteLine("──────────────────────────────────────────────────────────────────────────────────────────────");
+            Console.WriteLine("───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────");
             Console.WriteLine(
                 $" Port: {portName} | Baudrate: {baudRate} | Last telegram bytes: {lastTelegramBytes} | Total bytes sent: {totalBytesSent}"
                     .PadRight(Console.WindowWidth - 1)
@@ -335,6 +369,23 @@ namespace P1Simulator
         // ───────────────────────────────────────────────────────────────
         private static async Task RunSimulator()
         {
+            try
+            {
+                // Ensure buffer is at least as large as window
+#pragma warning disable CA1416 // Validate platform compatibility
+                Console.SetBufferSize(
+                    Math.Max(Console.BufferWidth, _settings.ConsoleWidth),
+                    Math.Max(Console.BufferHeight, _settings.ConsoleHeight)
+                );
+#pragma warning restore CA1416 // Validate platform compatibility
+
+                Console.SetWindowSize(_settings.ConsoleWidth, _settings.ConsoleHeight);
+            }
+            catch
+            {
+                // Ignore errors (e.g., too large for screen)
+            }
+
             MoveConsoleTo(100, 100);
             _cts = new CancellationTokenSource();
             _telegramCount = 0;
@@ -391,13 +442,69 @@ namespace P1Simulator
             DrawCommandPrompt();
             RedrawCommandLine();
 
-            int telegramIntervalMs = _settings.SpeedMs;
+            // ⭐ Scheduler anchor
             DateTime nextTelegramTime = DateTime.UtcNow;
 
             try
             {
                 while (!_cts.Token.IsCancellationRequested)
                 {
+                    // ⭐ Reload settings every loop iteration
+                    var newSettings = SettingsManager.Load();
+                    _settings.Template = newSettings.Template;
+                    _settings.Profile = newSettings.Profile;
+                    _settings.SpeedMs = newSettings.SpeedMs;
+
+                    // ⭐ Detect console size change
+                    if (_settings.ConsoleWidth != newSettings.ConsoleWidth ||
+                        _settings.ConsoleHeight != newSettings.ConsoleHeight)
+                    {
+                        _settings.ConsoleWidth = newSettings.ConsoleWidth;
+                        _settings.ConsoleHeight = newSettings.ConsoleHeight;
+
+                        try
+                        {
+#pragma warning disable CA1416 // Validate platform compatibility
+                            Console.SetBufferSize(
+                                Math.Max(Console.BufferWidth, _settings.ConsoleWidth),
+                                Math.Max(Console.BufferHeight, _settings.ConsoleHeight)
+                            );
+#pragma warning restore CA1416 // Validate platform compatibility
+
+                            Console.SetWindowSize(_settings.ConsoleWidth, _settings.ConsoleHeight);
+                        }
+                        catch
+                        {
+                            // ignore if too large for screen
+                        }
+
+                        _speedChangedAt = DateTime.Now; // reuse flash
+                    }
+
+                    // ⭐ Apply template/profile changes to generator
+                    generator.SetTemplate(_settings.Template);
+                    generator.SetProfile(_settings.Profile);
+
+                    // ⭐ Detect speed change
+                    int telegramIntervalMs = _settings.SpeedMs;
+                    if (telegramIntervalMs != lastSpeed)
+                    {
+                        _speedChangedAt = DateTime.Now;
+                        lastSpeed = telegramIntervalMs;
+
+                        // ⭐ Apply new speed immediately
+                        nextTelegramTime = DateTime.UtcNow.AddMilliseconds(telegramIntervalMs);
+
+                        // ⭐ Force immediate redraw so color flash is visible
+                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                        DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
+                        DrawCommandPrompt();
+                        RedrawCommandLine();
+                    }
+
+                    // ───────────────────────────────────────────────
+                    //  HOTKEYS / POPUPS
+                    // ───────────────────────────────────────────────
                     if (_requestQuit)
                     {
                         _requestQuit = false;
@@ -441,12 +548,24 @@ namespace P1Simulator
                         ProcessKey(key, commands);
                     }
 
-                    telegramIntervalMs = _settings.SpeedMs;
+                    // ⭐ Update header clock every second
+                    if ((DateTime.UtcNow - _lastClockUpdate).TotalSeconds >= 1)
+                    {
+                        _lastClockUpdate = DateTime.UtcNow;
 
-                    if (DateTime.UtcNow >= nextTelegramTime)
+                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                        DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
+                        DrawCommandPrompt();
+                        RedrawCommandLine();
+                    }
+
+                    // ───────────────────────────────────────────────
+                    //  TELEGRAM SENDING
+                    // ───────────────────────────────────────────────
+                    if (_telegramCount == 0 || DateTime.UtcNow >= nextTelegramTime)
                     {
                         _telegramCount++;
-                        DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
+                        //DrawStatusBar(commands.CurrentTemplate, commands.CurrentProfile, generator.ForceBadCrc);
 
                         ClearTelegramArea();
 
@@ -457,8 +576,10 @@ namespace P1Simulator
                         Console.WriteLine();
                         Console.WriteLine(telegram);
 
-                        sender.Send(telegram);
-                        _lastTelegramBytes = (UInt32)telegram.Length;
+                        string output = telegram;
+                        sender.Send(output);
+
+                        _lastTelegramBytes = (UInt32)output.Length;
                         _totalBytesSent += _lastTelegramBytes;
 
                         DrawFooter(portName, sender.BaudRate, _lastTelegramBytes, _totalBytesSent);
@@ -625,6 +746,36 @@ namespace P1Simulator
             int height = rect.Bottom - rect.Top;
 
             MoveWindow(handle, x, y, width, height, true);
+        }
+
+        private static void OnSettingsFileChanged(object sender, FileSystemEventArgs e)
+        {
+            try
+            {
+                var newSettings = SettingsManager.Load();
+
+                _settings.Template = newSettings.Template;
+                _settings.Profile = newSettings.Profile;
+                _settings.SpeedMs = newSettings.SpeedMs;
+                _settings.ConsoleWidth = newSettings.ConsoleWidth;
+                _settings.ConsoleHeight = newSettings.ConsoleHeight;
+            }
+            catch
+            {
+                // Ignore read errors (file may be locked briefly)
+            }
+        }
+        private static string FormatSpeed()
+        {
+            if ((DateTime.Now - _speedChangedAt).TotalMilliseconds < 800)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                string s = $"{_settings.SpeedMs}ms";
+                Console.ResetColor();
+                return s;
+            }
+
+            return $"{_settings.SpeedMs}ms";
         }
     }
 }

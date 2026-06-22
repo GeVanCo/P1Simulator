@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace P1Simulator.Settings
 {
@@ -14,7 +13,11 @@ namespace P1Simulator.Settings
             try
             {
                 if (!File.Exists(FilePath))
-                    return new SimulatorSettings();
+                {
+                    var defaults = new SimulatorSettings();
+                    Save(defaults);          // ⭐ create settings.json immediately
+                    return defaults;
+                }
 
                 string json = File.ReadAllText(FilePath);
                 return JsonSerializer.Deserialize<SimulatorSettings>(json)

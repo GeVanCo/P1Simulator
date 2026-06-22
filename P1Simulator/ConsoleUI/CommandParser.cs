@@ -22,7 +22,7 @@ namespace P1Simulator.ConsoleUI
                 { "profile",  "profile  <name>               - Switch profile  (use 'list profiles')" },
                 { "crc",      "crc      <good|bad>           - Set CRC mode" },
                 { "speed",    "speed    <ms>                 - Set telegram interval in milliseconds" },
-                { "list",     "list     <templates|profiles> - List templates or profiles" }
+                { "list",     "list     <templates|profiles> - List templates or profiles" },
             };
 
         public string CurrentTemplate { get; private set; } = "3phase";
