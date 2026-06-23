@@ -1,5 +1,6 @@
 ﻿using P1Simulator.Networking;
 using P1Simulator.Settings;
+using P1Simulator.Telegrams;
 
 namespace P1Simulator.Simulation
 {
@@ -14,18 +15,40 @@ namespace P1Simulator.Simulation
         public bool EnableCapacityTariff => true;
 
         private readonly P1HttpClient _client;
+        private string? _lastTimestamp = null;
 
         public LiveP1Profile()
         {
-            // Load settings to get the URL
             var settings = SettingsManager.Load();
             _client = new P1HttpClient(settings.LiveP1Url);
         }
 
         public Dictionary<string, string> GenerateValues()
         {
-            // Blocking call is fine here; generator is already synchronous
             string raw = _client.FetchTelegramAsync().Result;
+
+            string? ts = TimestampExtractor.Extract(raw);
+
+            // ⭐ If timestamp is missing, forward anyway
+            if (ts == null)
+            {
+                return new Dictionary<string, string>
+                {
+                    ["{RAW_TELEGRAM}"] = raw
+                };
+            }
+
+            // ⭐ If timestamp unchanged → return EMPTY telegram (skip)
+            if (ts == _lastTimestamp)
+            {
+                return new Dictionary<string, string>
+                {
+                    ["{RAW_TELEGRAM}"] = ""   // empty means "skip"
+                };
+            }
+
+            // ⭐ New telegram → forward it
+            _lastTimestamp = ts;
 
             return new Dictionary<string, string>
             {

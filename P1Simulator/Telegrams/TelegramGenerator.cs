@@ -62,9 +62,17 @@ namespace P1Simulator.Telegrams
 
                 if (!life_values.TryGetValue("{RAW_TELEGRAM}", out var raw))
                     return "ERROR: Live profile did not provide {RAW_TELEGRAM}.\r\n";
+                // ⭐ Skip duplicate telegrams
 
-                // We assume raw already contains full telegram including CRC and line breaks.
-                return raw.EndsWith("\r\n") ? raw : raw + "\r\n";
+                if (string.IsNullOrWhiteSpace(raw))
+                    return "";   // nothing to send
+
+                // We check if raw already contains full telegram including CRC and line breaks.
+                if (raw.EndsWith("\r\n") || raw.EndsWith("\n") || raw.EndsWith("\r"))
+                    return raw;
+
+                // If not, add it.
+                return raw + "\r\n";
             }
 
             // 1) Generate placeholder values

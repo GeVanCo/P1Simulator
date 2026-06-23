@@ -571,6 +571,13 @@ namespace P1Simulator
 
                         string telegram = generator.Generate();
 
+                        // ⭐ Skip empty telegrams (duplicate timestamps)
+                        if (string.IsNullOrWhiteSpace(telegram))
+                        {
+                            nextTelegramTime = DateTime.UtcNow.AddMilliseconds(telegramIntervalMs);
+                            continue;
+                        }
+
                         Console.SetCursorPosition(0, 5);
                         Console.WriteLine("Sending telegram:");
                         Console.WriteLine();
