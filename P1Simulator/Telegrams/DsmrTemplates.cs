@@ -204,5 +204,51 @@ namespace P1Simulator.Telegrams
 
 !";
 
+        // --------------------------------------------------------------------
+        // XT211 — Fluvius Sagemcom Digital Meter (authentic structure)
+        // --------------------------------------------------------------------
+        public const string Xt211 =
+        @"/FLU5\253967035_D
+
+0-0:96.1.4({METER_TYPE})
+1-0:94.32.1({FIRMWARE_VERSION})
+0-0:96.1.1({EQUIPMENT_ID})
+0-0:96.1.2()
+0-0:1.0.0({TIMESTAMP})
+1-0:1.8.1({IMPORT_LOW}*kWh)
+1-0:1.8.2({IMPORT_HIGH}*kWh)
+1-0:2.8.1({EXPORT_LOW}*kWh)
+1-0:2.8.2({EXPORT_HIGH}*kWh)
+0-0:96.14.0({TARIFF_INDICATOR})
+1-0:1.4.0({ACTUAL_POWER_L1}*kW)
+1-0:1.6.0({PEAK_TIMESTAMP})({PEAK_VALUE}*kW)
+0-0:98.1.0({PEAK_EVENTS_COUNT}){PEAK_EVENTS}
+1-0:1.7.0({ACTUAL_IMPORT}*kW)
+1-0:2.7.0({ACTUAL_EXPORT}*kW)
+1-0:21.7.0({L1_IMPORT}*kW)
+1-0:41.7.0({L2_IMPORT}*kW)
+1-0:61.7.0({L3_IMPORT}*kW)
+1-0:22.7.0({L1_EXPORT}*kW)
+1-0:42.7.0({L2_EXPORT}*kW)
+1-0:62.7.0({L3_EXPORT}*kW)
+1-0:32.7.0({VOLTAGE_L1}*V)
+1-0:52.7.0({VOLTAGE_L2}*V)
+1-0:72.7.0({VOLTAGE_L3}*V)
+1-0:31.7.0({CURRENT_L1}*A)
+1-0:51.7.0({CURRENT_L2}*A)
+1-0:71.7.0({CURRENT_L3}*A)
+0-0:96.3.10({BREAKER_STATE})
+0-0:17.0.0({MAX_POWER}*kW)
+1-0:31.4.0({MAX_CURRENT}*A)
+0-1:96.3.10(0)
+0-2:96.3.10(0)
+0-3:96.3.10(0)
+0-4:96.3.10(0)
+0-0:96.13.0()
+!";
+
+        public const string Passthrough =
+@"{RAW_TELEGRAM}";
+
     }
 }

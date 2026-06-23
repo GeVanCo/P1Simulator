@@ -15,6 +15,11 @@ namespace P1Simulator.Simulation
             Register(new RandomProfile());
             Register(new SolarProfile());
             Register(new EVProfile());
+            Register(new Xt211FixedProfile());
+            Register(new Xt211RandomProfile());
+
+            // ⭐ NEW: live P1 profile (HTTP passthrough)
+            Register(new LiveP1Profile());
         }
 
         /// <summary>

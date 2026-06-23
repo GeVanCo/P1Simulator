@@ -22,6 +22,10 @@ namespace P1Simulator.Telegrams
             Register("water", DsmrTemplates.Water);
             Register("heat", DsmrTemplates.Heat);
             Register("fulldsmrextended", DsmrTemplates.FullDsmrExtended);
+            Register("xt211", DsmrTemplates.Xt211);
+
+            // ⭐ NEW: passthrough template for live P1 telegrams
+            Register("passthrough", DsmrTemplates.Passthrough);
         }
 
         public void Register(string name, string template)

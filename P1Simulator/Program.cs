@@ -386,7 +386,7 @@ namespace P1Simulator
                 // Ignore errors (e.g., too large for screen)
             }
 
-            MoveConsoleTo(100, 100);
+            //MoveConsoleTo(100, 100);
             _cts = new CancellationTokenSource();
             _telegramCount = 0;
             _historyIndex = -1;
@@ -571,7 +571,7 @@ namespace P1Simulator
 
                         string telegram = generator.Generate();
 
-                        Console.SetCursorPosition(0, 7);
+                        Console.SetCursorPosition(0, 5);
                         Console.WriteLine("Sending telegram:");
                         Console.WriteLine();
                         Console.WriteLine(telegram);

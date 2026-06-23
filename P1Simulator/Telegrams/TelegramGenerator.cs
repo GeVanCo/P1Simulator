@@ -55,6 +55,18 @@ namespace P1Simulator.Telegrams
             if (profile == null)
                 return $"ERROR: Profile '{profileName}' not found.\r\n";
 
+            // ⭐ SPECIAL CASE: passthrough template + live profile
+            if (templateName.Equals("passthrough", StringComparison.OrdinalIgnoreCase))
+            {
+                var life_values = profile.GenerateValues();
+
+                if (!life_values.TryGetValue("{RAW_TELEGRAM}", out var raw))
+                    return "ERROR: Live profile did not provide {RAW_TELEGRAM}.\r\n";
+
+                // We assume raw already contains full telegram including CRC and line breaks.
+                return raw.EndsWith("\r\n") ? raw : raw + "\r\n";
+            }
+
             // 1) Generate placeholder values
             var values = profile.GenerateValues();
 
