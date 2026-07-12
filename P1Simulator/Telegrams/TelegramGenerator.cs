@@ -58,9 +58,9 @@ namespace P1Simulator.Telegrams
             // ⭐ SPECIAL CASE: passthrough template + live profile
             if (templateName.Equals("passthrough", StringComparison.OrdinalIgnoreCase))
             {
-                var life_values = profile.GenerateValues();
+                var live_values = profile.GenerateValues();
 
-                if (!life_values.TryGetValue("{RAW_TELEGRAM}", out var raw))
+                if (!live_values.TryGetValue("{RAW_TELEGRAM}", out var raw))
                     return "ERROR: Live profile did not provide {RAW_TELEGRAM}.\r\n";
                 // ⭐ Skip duplicate telegrams
 
